@@ -26,7 +26,7 @@ LDFLAGS				= `pkg-config --libs $(PKGS)`
 
 TEST_CFLAGS			= $(CFLAGS) -O0 -g --coverage
 TEST_CPPFLAGS		= $(CPPFLAGS) -fno-inline
-TEST_LDFLAGS		= $(LDFLAGS) -lgtest -lgtest_main -lpthread
+TEST_LDFLAGS		= $(LDFLAGS) -lgtest -lgmock -lgtest_main -lpthread
 
 # Define the object files
 TEST_SVG_OBJ		= $(TESTOBJ_DIR)/svg.o
@@ -57,6 +57,35 @@ TEST_XMLBS_OBJ_FILES	= $(TEST_STRSRC_OBJ) $(TEST_XMLREADER_OBJ) $(TEST_XMLBS_OBJ
 TEST_OSM_OBJ			= $(TESTOBJ_DIR)/OpenStreetMap.o
 TEST_OSM_TEST_OBJ		= $(TESTOBJ_DIR)/OpenStreetMapTest.o
 TEST_OSM_OBJ_FILES		= $(TEST_STRSRC_OBJ) $(TEST_XMLREADER_OBJ) $(TEST_OSM_OBJ) $(TEST_OSM_TEST_OBJ)
+
+TEST_MOCK_BS_OBJ		= $(TESTOBJ_DIR)/MockBusSystem.o
+TEST_MOCK_SM_OBJ		= $(TESTOBJ_DIR)/MockStreetMap.o
+
+TEST_BSIDX_OBJ			= $(TESTOBJ_DIR)/BusSystemIndexer.o
+TEST_BSIDX_TEST_OBJ		= $(TESTOBJ_DIR)/BusSystemIndexerTest.o
+TEST_BSIDXL_OBJ_FILES		= $(TEST_STRSRC_OBJ) \
+							$(TEST_MOCK_BS_OBJ) \
+							$(TEST_BSIDX_OBJ) \
+							$(TEST_BSIDX_TEST_OBJ)
+
+TEST_HTMLTPW_OBJ		= $(TESTOBJ_DIR)/HTMLTripPlanWriter.o
+TEST_SVGTPW_OBJ			= $(TESTOBJ_DIR)/SVGTripPlanWriter.o
+TEST_TEXTTPW_OBJ		= $(TESTOBJ_DIR)/TextTripPlanWriter.o
+
+TEST_TP_OBJ				= $(TESTOBJ_DIR)/TripPlanner.o
+TEST_TPCL_OBJ			= $(TESTOBJ_DIR)/TripPlannerCommandLine.o
+TEST_TPCL_TEST_OBJ		= $(TESTOBJ_DIR)/TripPlannerCommandLineTest.o
+TEST_TPCL_OBJ_FILES		= $(TEST_STRSRC_OBJ) \
+							$(TEST_STRSINK_OBJ) \
+							$(TEST_MOCK_BS_OBJ) \
+							$(TEST_MOCK_SM_OBJ) \
+							$(TEST_BSIDX_OBJ) \
+							$(TEST_HTMLTPW_OBJ)	\
+							$(TEST_SVGLTPW_OBJ)	\
+							$(TEST_TEXTTPW_OBJ)	\
+							$(TEST_TP_OBJ)	\
+							$(TEST_TPCL_OBJ) \
+							$(TEST_TPCL_TEST_OBJ)
 
 # Define the targets
 TEST_TARGET			= $(TESTBIN_DIR)/testsvg
@@ -90,6 +119,8 @@ all: directories \
 	run_sinktest \
 	run_srctest \
 	run_svgwritertest \
+	run_bsidxtest		\
+	run_tpcltest		\
 	run_xmltest \
 	run_xmlbstest \
 	run_osmtest \
@@ -111,6 +142,14 @@ run_srctest: $(TEST_STRSRC_TARGET)
 
 run_svgwritertest: $(TEST_SVGWRITER_TARGET)
 	$(TEST_SVGWRITER_TARGET) --gtest_output=xml:$(TESTTMP_DIR)/$@
+	mv $(TESTTMP_DIR)/$@ $@
+
+run_tpcltest: $(TEST_TPCL_TARGET)
+	$(TEST_TPCL_TARGET) --gtest_output=xml:$(TESTTMP_DIR)/$@
+	mv $(TESTTMP_DIR)/$@ $@
+
+run_bsidxtest: $(TEST_BSIDX_TARGET)
+	$(TEST_BSIDX_TARGET) --gtest_output=xml:$(TESTTMP_DIR)/$@
 	mv $(TESTTMP_DIR)/$@ $@
 
 run_xmltest: $(TEST_XMLREADER_TARGET)
@@ -167,8 +206,14 @@ $(TEST_SVG_OBJ): $(SRC_DIR)/svg.c
 $(TEST_XMLBS_TARGET): $(TEST_XMLBS_OBJ_FILES)
 	$(CXX) $(TEST_CFLAGS) $(TEST_CPPFLAGS) $(TEST_XMLBS_OBJ_FILES) $(TEST_LDFLAGS) -o $(TEST_XMLBS_TARGET)
 
+$(TEST_TPCL_TARGET): $(TEST_TPCL_OBJ_FILES)
+	$(CXX) $(TEST_CFLAGS) $(TEST_CPPFLAGS) $(TEST_TPCL_OBJ_FILES) $(TEST_LDFLAGS) -o $(TEST_TPCL_TARGET)
+
 $(TEST_OSM_TARGET): $(TEST_OSM_OBJ_FILES)
 	$(CXX) $(TEST_CFLAGS) $(TEST_CPPFLAGS) $(TEST_OSM_OBJ_FILES) $(TEST_LDFLAGS) -o $(TEST_OSM_TARGET)
+
+$(TEST_BSIDX_TARGET): $(TEST_BSIDXL_OBJ_FILES)
+	$(CXX) $(TEST_CFLAGS) $(TEST_CPPFLAGS) $(TEST_BSIDXL_OBJ_FILES) $(TEST_LDFLAGS) -o $(TEST_BSIDX_TARGET)
 
 $(TEST_SVG_TEST_OBJ): $(TESTSRC_DIR)/SVGTest.cpp
 	$(CXX) $(TEST_CFLAGS) $(TEST_CPPFLAGS) $(DEFINES) $(INCLUDE) -c $(TESTSRC_DIR)/SVGTest.cpp -o $(TEST_SVG_TEST_OBJ)
