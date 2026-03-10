@@ -4,9 +4,11 @@ Student 1: Jason Mai (924632295)
 Student 2: Truong Le (924636822)
 
 ## Code Referencess
-[How Node Works in OSM](https://wiki.openstreetmap.org/wiki/Node)
-[How Way Works in OSM](https://wiki.openstreetmap.org/wiki/Node)
-[The relationship between the tags](https://piazza.com/class/mk1ahplhek42hi/post/94)
+- [How Node Works in OSM](https://wiki.openstreetmap.org/wiki/Node)
+- [How Way Works in OSM](https://wiki.openstreetmap.org/wiki/Node)
+- [The relationship between the tags](https://piazza.com/class/mk1ahplhek42hi/post/94)
+- [std::sort to create sorted Nodes and Ways] (https://en.cppreference.com/w/cpp/algorithm/sort.html)
+- [Data Structure commands and review, specifcally for vectors/maps] (https://www.w3schools.com/cpp/cpp_data_structures.asp)
 
 
 Basic git Commands
@@ -15,6 +17,22 @@ git pull --no-rebase origin main
 git push origin main
 
 And if you end up in a VIM text editor, just do esc + :wq into the text and you will exit
+
+### What is this project overall
+- We are building a bus trip planner, given a city's street map and bus schedule, a user can be like "I'm at stop A and I wanna go to stop B, I'm leaving at 3pm" and our program is supposed to figure out which bus to take
+
+### The Pieces we need and why:
+- **CStreetMap** — Raw data. Just holds every node (a point on the map like an intersection) and every way (a road connecting nodes). Think of it as the raw GPS map data.
+- **CBusSystem** — Raw data. Holds every bus stop, every route, and the schedule. Think of it as the raw bus schedule data.
+- **CStreetMapIndexer** — organizes the street map so it's easy to search. The raw map has no order, so this sorts everything and lets you ask questions like "which roads are in this area?" or "which roads pass through this intersection?"
+- **CBusSystemIndexer** — same idea but for the bus system. Lets you ask "which routes stop at stop 42?" or "which routes go from stop A to stop B?"
+
+### The Overall Flow: Chronological Progression
+1. StreetMap/Bus System Data (data that goes into the program)
+2. Indexers (organizes the data)
+3. TripPlanner (uses indexers to find best route)
+4. Writers (output the result as text/SVG/HTML)
+5. CommandLine (ties it all together for the user)
 
 # Generative AI 
 ## Prompt 1: 
