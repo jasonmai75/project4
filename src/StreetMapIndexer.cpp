@@ -29,7 +29,6 @@ struct CStreetMapIndexer::SImplementation {
             // Also store it in our ID->node map for fast lookup later
             DNodesByID[node->ID()] = node;
          }
-    }
 
     // Sort nodes by ID so we can return them in a consistent order (lambda can compare two nodes and smaller ID comes first)
     std::sort(DSortedNodes.begin(), DSortedNodes.end(),
@@ -37,7 +36,50 @@ struct CStreetMapIndexer::SImplementation {
         return a->ID() < b->ID();
     });
 
+    // Collecting all ways, loop through every way (road/paths) in street map by index
+    for(std::size_t i = 0; i < streetmap->WayCount(); i++) {
+        // Get the way at position i
+        auto way = streetmap->WayByIndex(i);
 
+        // Add to sorted list
+        DSortedWays.push_back(way);
+
+        // Build the node -> ways lookup map (differentiating and recognizing nodes that use this way so we can answer questions like "which ways pass through node X?")
+        for(std::size_t j = 0; j < way->NodeCount(); j++) {
+            // Get ID of j-th node in this way
+            CStreetMap::TNodeID nodeID = way->GetNodeID(j);
+
+            // Add this way to the set of ways that include his node.
+            DWaysByNodeID[nodeID].insert(way);
+        }
+    }
+
+    // Sort ways by their ID so we can return them in a consistent order
+    std::sort(DSortedWays.begin(), DSortedWays.end(),
+    [](const std::shared_ptr<CStreetMap::SWay> &a, const std::shared_ptr<CStreetMap::SWay> &b) {
+        return a->ID() < b->ID();
+    });
+}
+
+// How many nodes are stored
+std::size_t NodeCount() const noexcept {
+    return DSortedNodes.size();
+}
+
+// How many ways are stored
+std::size_t WayCount() const noexcept {
+    return DSortedWays.size();
+}
+
+// Returns the node at a given position (in sorted-by-ID list)
+std::shared_ptr<CStreetMap::SNode> SortedNodeByIndex(std::size_t index) const noexcept {
+    // Return nullptr if out of range
+    if(index >= DSortedNodes.size()) {
+        return nullptr;
+    }
+
+    return DSortedNodes[index];
+}
 
 
 
