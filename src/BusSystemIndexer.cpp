@@ -25,6 +25,7 @@ struct SRouteIndexer : public CBusSystemIndexer::SRouteIndexer{
             return DRoute->TripCount();
         }
         
+        
         TStopID GetStopID(std::size_t index) const noexcept override{
             return DRoute->GetStopID(index);
         }
@@ -33,13 +34,35 @@ struct SRouteIndexer : public CBusSystemIndexer::SRouteIndexer{
             return DRoute->GetStopTime(stopindex,tripindex);
         }
         
+        // Searches for a stop ID starting from a given index
         size_t FindStopIndex(TStopID stopid, size_t start) const override{
-
+        for(size_t i = start; i < StopCount(); i++) {
+            if(GetStopID(i) == stopid) {
+                return i;
+            }
         }
+        return StopCount(); // return StopCount() when not found
+    }
 
+        // Returns all stop IDs between src and dest on this route
         std::vector< TStopID > StopIDsSourceDestination(TStopID src, TStopID dest) const override{
+            std::vector<TStopID> result;
 
-        }
+            // Figure out where src appears in this route
+            size_t startIndex = FindStopIndex(src, 0);
+            if(startIndex >= StopCount()) {
+                return result; // src not on this route
+            }
+
+            // Collect all stops from src up to and including dest
+            for(size_t i = startIndex; i < StopCount(); i++) {
+                result.push_back(GetStopID(i));
+                if(GetStopID(i) == dest) {
+                    return result; // found dest
+                }
+            }
+        return {}; // If dest not found after src, return empty 
+      }
     };
 
     std::shared_ptr<CBusSystem> DBusSystem;
