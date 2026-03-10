@@ -1,4 +1,4 @@
-# project3
+# project4
 Student 1: Jason Mai (924632295)
 
 Student 2: Truong Le (924636822)
@@ -20,12 +20,12 @@ And if you end up in a VIM text editor, just do esc + :wq into the text and you 
 ## Prompt 1: 
 Debug this Makefile I created, it's mostly complete, I just need debugging and syntax and error fixing, also give me a full list of what was wrong after
 
-# Define the tools
+Define the tools
 AR=ar
 CC=gcc
 CXX=g++
 
-# Define the directories
+Define the directories
 INC_DIR				= ./include
 SRC_DIR				= ./src
 TESTSRC_DIR			= ./testsrc
@@ -37,7 +37,7 @@ TESTBIN_DIR			= ./testbin
 TESTCOVER_DIR		= ./htmlconv
 TESTTMP_DIR			= ./testtmp
 
-# Define the flags for compilation/linking
+Define the flags for compilation/linking
 PKGS				= expat
 DEFINES				= 
 INCLUDE				= -I $(INC_DIR) `pkg-config --cflags $(PKGS)`
@@ -50,9 +50,8 @@ TEST_CFLAGS			= $(CFLAGS) -O0 -g --coverage
 TEST_CPPFLAGS		= $(CPPFLAGS) -fno-inline
 TEST_LDFLAGS		= $(LDFLAGS) -lgtest -lgmock -lgtest_main -lpthread
 
-# Define the object files
-TEST_SVG_OBJ		= $(TESTOBJ_DIR)/svg.o
-TEST_SVG_TEST_OBJ	= $(TESTOBJ_DIR)/SVGTest.o
+Define the object files
+TEST_SVG_OBJOBJ	= $(TESTOBJ_DIR)/SVGTest.o
 TEST_OBJ_FILES		= $(TEST_SVG_OBJ) $(TEST_SVG_TEST_OBJ)
 
 
@@ -90,7 +89,7 @@ TEST_BSIDXL_OBJ_FILES		= $(TEST_STRSRC_OBJ) \
 							$(TEST_BSIDX_OBJ) \
 							$(TEST_BSIDX_TEST_OBJ)
 
-# Adding StreetMapIndexer object files and test
+Adding StreetMapIndexer object files and test
 TEST_SMIDX_OBJ			= $(TESTOBJ_DIR)/StreetMapIndexer.o
 TEST_SMIDX_TEST_OBJ		= $(TESTOBJ_DIR)/StreetMapIndexerTest.o
 TEST_SMIDX_OBJ_FILES	= $(TEST_STRSRC_OBJ) $(TEST_MOCK_SM_OBJ) $(TEST_SMIDX_OBJ) $(TEST_SMIDX_TEST_OBJ)
@@ -161,7 +160,7 @@ TEST_GEOUTILS_OBJ				= $(TESTOBJ_DIR)/GeographicUtils.o
 TEST_GEOUTILS_TEST_OBJ			= $(TESTOBJ_DIR)/GeographicUtilsTest.o
 TEST_GEOUTILS_OBJ_FILES			= $(TEST_GEOUTILS_OBJ) $(TEST_GEOUTILS_TEST_OBJ)
 
-# Define the targets
+Define the targets
 TEST_TARGET			= $(TESTBIN_DIR)/testsvg
 
 PROD_SVG_OBJ = $(OBJ_DIR)/svg.o # this is like the actual build, instead of being a test
@@ -206,7 +205,7 @@ TRIPPLANNER_TARGET	= $(BIN_DIR)/tripplanner
 
 
 
-# All these get ran
+All these get ran
 all: directories \
 	make_svglib \
 	runmain \
@@ -267,7 +266,7 @@ run_osmtest: $(TEST_OSM_TARGET)
 	$(TEST_OSM_TARGET) --gtest_output=xml:$(TESTTMP_DIR)/$@
 	mv $(TESTTMP_DIR)/$@ $@
 
-# Run targets for all tests
+Run targets for all tests
 run_filedatasstest: $(TEST_FILEDATASS_TARGET)
 	$(TEST_FILEDATASS_TARGET) --gtest_output=xml:$(TESTTMP_DIR)/$@
 	mv $(TESTTMP_DIR)/$@ $@ 
@@ -317,7 +316,7 @@ $(MAIN_TARGET): $(SRC_DIR)/main.c $(STATIC_LIB) # compile and linking the main.c
 runmain: $(MAIN_TARGET) # run command for main that will be run by Makefile by all:
 	$(MAIN_TARGET)
 
-# comparing generated SVG with expected SVG
+comparing generated SVG with expected SVG
 xmldiff: runmain
 	xmldiff expected_checkmark.svg checkmark.svg && echo "SVG files are identical" || echo "SVG files are NOT identical"
 
@@ -430,7 +429,8 @@ Trailing \ on last lines of TEST_TP_OBJ_FILES and TEST_TEXTTPW_OBJ_FILES removed
 Duplicate run_tpcltest definition removed
 Double-tab indentation on new build rules fixed to single tab
 
-## Changes 1: Pasted the debugged and finished Makefile into the code, and now that Makefile code from the AI serves as our program's Makefile code
+## Changes 1: 
+### - Pasted the debugged and finished Makefile into the code, and now that Makefile code from the AI serves as our program's Makefile code
 
 ## Prompt 2:
 Why am I receiving all these errors after fixing my Makefile?
