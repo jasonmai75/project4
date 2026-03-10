@@ -40,7 +40,7 @@ struct CStreetMapIndexer::SImplementation {
 
 
 
-    
+
 };
 
 CStreetMapIndexer::CStreetMapIndexer(std::shared_ptr<CStreetMap> streetmap) {
