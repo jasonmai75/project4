@@ -92,7 +92,7 @@ struct CStreetMapIndexer::SImplementation {
 }
 
     // Returns all ways that contain a specific node
-    std::unordered_set<std::shared_ptr<CStreetMap::SWay>> WayByNodeID(CStreetMap::TNodeID nodeID) const noexcept {
+    std::unordered_set<std::shared_ptr<CStreetMap::SWay>> WaysByNodeID(CStreetMap::TNodeID nodeID) const noexcept {
         // Look up the node ID in our map
          auto it = DWaysByNodeID.find(nodeID);
 
@@ -162,33 +162,32 @@ CStreetMapIndexer::CStreetMapIndexer(std::shared_ptr<CStreetMap> streetmap) {
 }
 
 CStreetMapIndexer::~CStreetMapIndexer() {
-    
+
 }
 
 std::size_t CStreetMapIndexer::NodeCount() const noexcept {
-    return 0; // DO STUFF
+    return DImplementation->NodeCount();
 }
 
 std::size_t CStreetMapIndexer::WayCount() const noexcept {
-    return 0; // DO STUFF
+    return DImplementation->WayCount();
 }
 
 std::shared_ptr<CStreetMap::SNode> CStreetMapIndexer::SortedNodeByIndex(std::size_t index) const noexcept {
-    return nullptr; // DO STUFF
+    return DImplementation->SortedNodeByIndex(index);
 }
 
 std::shared_ptr<CStreetMap::SWay> CStreetMapIndexer::SortedWayByIndex(std::size_t index) const noexcept {
-    return nullptr; // DO STUFF
-}
-
-std::unordered_set<std::shared_ptr<CStreetMap::SWay>> CStreetMapIndexer::WaysInRange(const CStreetMap::SLocation &lowerleft, const CStreetMap::SLocation &upperright) const noexcept {
-    return {}; // DO STUFF
+    return DImplementation->SortedWayByIndex(index);
 }
 
 std::unordered_set<std::shared_ptr<CStreetMap::SWay>> CStreetMapIndexer::WaysByNodeID(CStreetMap::TNodeID node) const noexcept {
-    return {}; // DO STUFF
+    return DImplementation->WaysByNodeID(node);
 }
 
+std::unordered_set<std::shared_ptr<CStreetMap::SWay>> CStreetMapIndexer::WaysInRange(const CStreetMap::SLocation &lowerleft, const CStreetMap::SLocation &upperright) const noexcept {
+    return DImplementation->WaysInRange(lowerleft, upperright);
+}
 
 
 
