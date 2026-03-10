@@ -43,20 +43,28 @@ struct CTextTripPlanWriter::SImplementation{
             return (iterator != DOptionTypes.end()) ? iterator->second : EOptionType::None;
         }
         void SetOption(std::string_view option, int value){
-            DOptions[std::string(option)] = value;
-            DOptionTypes[std::string(option)] = EOptionType::Int;
+            if(DValidOptions.find(std::string(option)) != DValidOptions.end()){
+                DOptions[std::string(option)] = value;
+                DOptionTypes[std::string(option)] = EOptionType::Int;
+            }
         }
         void SetOption(std::string_view option, double value){
-            DOptions[std::string(option)] = value;
-            DOptionTypes[std::string(option)] = EOptionType::Double;
+            if(DValidOptions.find(std::string(option)) != DValidOptions.end()){
+                DOptions[std::string(option)] = value;
+                DOptionTypes[std::string(option)] = EOptionType::Double;
+            }
         }
         void SetOption(std::string_view option, const std::string &value){
-            DOptions[std::string(option)] = value;
-            DOptionTypes[std::string(option)] = EOptionType::String;
+            if(DValidOptions.find(std::string(option)) != DValidOptions.end()){
+                DOptions[std::string(option)] = value;
+                DOptionTypes[std::string(option)] = EOptionType::String;
+            }
         }
         void ClearOption(std::string_view option){
-            DOptions.erase(std::string(option));
-            DOptionTypes.erase(std::string(option));
+            if(DValidOptions.find(std::string(option)) != DValidOptions.end()){
+                DOptions.erase(std::string(option));
+                DOptionTypes.erase(std::string(option));
+            }
         }
         std::unordered_set<std::string> ValidOptions() const{
             return DValidOptions;
