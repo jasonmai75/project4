@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <vector>
 #include <unordered_map>
+#include <limits>
 
 struct CBusSystemIndexer::SImplementation{
 struct SRouteIndexer : public CBusSystemIndexer::SRouteIndexer{
@@ -148,7 +149,26 @@ struct SRouteIndexer : public CBusSystemIndexer::SRouteIndexer{
     }
 
     bool StopIDsByRoutes(const std::string &route1, const std::string &route2, std::unordered_set< TStopID > &stops) const noexcept{
-        return true;
+        auto search1 = DRoutesByName.find(route1);
+        auto search2 = DRoutesByName.find(route2);
+
+        if(search1 == DRoutesByName.end() || search2 == DRoutesByName.end()) { 
+            return false;
+        }
+
+        stops.clear();
+
+        for(size_t i = 0; i < search1->second->StopCount(); i++) {
+            auto id = search1->second->GetStopID(i);
+            for(size_t j = 0; j < search2->second->StopCount(); j++) {
+                if(search2->second->GetStopID(j) == id) {
+                    stops.insert(id);
+                }
+            }
+        } 
+
+        return !stops.empty();
+
     }
 
 };
