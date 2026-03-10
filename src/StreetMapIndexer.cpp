@@ -132,13 +132,13 @@ struct CStreetMapIndexer::SImplementation {
             // Latitude must be between lowerleft and upperright
             bool latInRange = false;
             if(loc.DLatitude >= lowerleft.DLatitude && loc.DLatitude <= upperright.DLatitude) {
-                latInRange == true;
+                latInRange = true;
             }
 
             // Longitude must be between lowerleft and upperright
             bool longInRange = false;
             if(loc.DLongitude >= lowerleft.DLongitude && loc.DLongitude <= upperright.DLongitude) {
-                longInRange == true;
+                longInRange = true;
             }
 
             // If both are in range
