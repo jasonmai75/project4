@@ -70,6 +70,7 @@ struct CXMLBusSystem::SImplementation{
         std::string DName;                  // Route Name
         std::vector<TStopID> DStopIDs;      // Ordered list of stop IDs on this route
 
+
         // Constructor
         SRoute(const std::string &name) : DName(name) {}
 
@@ -93,6 +94,16 @@ struct CXMLBusSystem::SImplementation{
             }
             return DStopIDs[index];
         }
+
+        // Added to remove Makefile Error (figure out later)
+        std::size_t TripCount() const noexcept override {
+             return 0; // stub if not used
+         }
+
+         TStopTime GetStopTime(std::size_t stopindex, std::size_t tripindex) const noexcept override {
+             return {}; // stub if not used
+        }   
+
     };
     
     struct SPath : public CBusSystem::SPath {
