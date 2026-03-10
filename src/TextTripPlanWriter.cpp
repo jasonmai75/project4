@@ -4,6 +4,7 @@
 #include <unordered_set>
 #include <unordered_map>
 #include <map>
+#include <chrono>
 
 struct CTextTripPlanWriter::SImplementation{
 
@@ -67,7 +68,7 @@ struct CTextTripPlanWriter::SImplementation{
     std::shared_ptr<SConfig> DConfig;
 
     SImplementation(std::shared_ptr<CBusSystem> bussystem){
-        DBusSystem = DBusSystem;
+        DBusSystem = bussystem;
         DConfig = std::make_shared<SConfig>();
     }
 
@@ -110,8 +111,10 @@ struct CTextTripPlanWriter::SImplementation{
         for (size_t i = 0; i < route->TripCount(); i++)
         {
             for (size_t j = 0; j < route->StopCount(); j++)
-            {
-                if(route->GetStopID(j) == start.DStopID && route->GetStopTime(j, i) == start.DTime){
+            {   
+                auto routeTime = route->GetStopTime(j, i);
+                auto startTime = start.DTime;
+                if(route->GetStopID(j) == start.DStopID && routeTime.to_duration() == startTime.to_duration()){
                     currenTrip = i;
                     startStopIndex = j;
                     foundTrip = true;
