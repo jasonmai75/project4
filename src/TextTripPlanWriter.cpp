@@ -18,7 +18,6 @@ struct CTextTripPlanWriter::SImplementation{
         
         SConfig(){
             DValidFlags = {std::string(Verbose)};
-            DEnabledFlags.insert(std::string(Verbose));
         }
 
         bool FlagEnabled(std::string_view flag) const{
