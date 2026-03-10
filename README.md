@@ -27,6 +27,12 @@ And if you end up in a VIM text editor, just do esc + :wq into the text and you 
 - **CStreetMapIndexer** — organizes the street map so it's easy to search. The raw map has no order, so this sorts everything and lets you ask questions like "which roads are in this area?" or "which roads pass through this intersection?"
 - **CBusSystemIndexer** — same idea but for the bus system. Lets you ask "which routes stop at stop 42?" or "which routes go from stop A to stop B?"
 
+### The Overall Flow: Chronological Progression
+1. StreetMap/Bus System Data (data that goes into the program)
+2. Indexers (organizes the data)
+3. TripPlanner (uses indexers to find best route)
+4. Writers (output the result as text/SVG/HTML)
+5. CommandLine (ties it all together for the user)
 
 # Generative AI 
 ## Prompt 1: 
