@@ -9,6 +9,7 @@ Student 2: Truong Le (924636822)
 - [The relationship between the tags](https://piazza.com/class/mk1ahplhek42hi/post/94)
 - [std::sort to create sorted Nodes and Ways] (https://en.cppreference.com/w/cpp/algorithm/sort.html)
 - [Data Structure commands and review, specifcally for vectors/maps] (https://www.w3schools.com/cpp/cpp_data_structures.asp)
+- [How to do padding in commandline in C++](https://stackoverflow.com/questions/667183/padding-stl-strings-in-c)
 
 
 Basic git Commands

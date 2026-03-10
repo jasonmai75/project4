@@ -11,6 +11,7 @@ struct CTextTripPlanWriter::SImplementation{
     }
 
     std::shared_ptr<SConfig> Config() const{
+        
         return nullptr;
     }
 
