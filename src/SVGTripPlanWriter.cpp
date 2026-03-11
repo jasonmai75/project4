@@ -129,6 +129,12 @@ struct CSVGTripPlanWriter::SImplementation{
             return DValidOptions;
         }
     };
+    const std::string DTagHighWay = "highway";
+    const std::string DTypeMotorWay = "motorway";
+    const std::string DTypePrimary = "primary";
+    const std::string DTypeSecondary = "secondary";
+    const std::string DTypeTertiary = "tertiary";
+    const std::string DTypeResidential = "residential";
 
     std::shared_ptr<CStreetMap> DStreetMap;
     std::shared_ptr<CBusSystem> DBusSystem;
@@ -161,6 +167,53 @@ struct CSVGTripPlanWriter::SImplementation{
             return height/2.0;
         }
         return margin + ((maxLat-lat) / (maxLat-minLat) ) * (height - 2.0 * margin);
+    }
+
+    void DrawStreets(CSVGWriter writer, CStreetMap::SLocation minLoc, CStreetMap::SLocation maxLoc,
+        double width, double height, double margin){
+        std::string streetColor = std::any_cast<std::string>(DConfig->GetOption(StreetColor));
+        auto waysInRange = DStreetMapIndexer->WaysInRange(minLoc, maxLoc);
+
+        for (auto &way : waysInRange)
+        {
+            double strokeWidth = 0.0;
+            if(way->HasAttribute(DTagHighWay)){
+                std::string highwayType = way->GetAttribute(DTagHighWay);
+                if(highwayType == DTypeMotorWay && DConfig->FlagEnabled(MotorwayEnabled)){
+                    strokeWidth = std::any_cast<double>(DConfig->GetOption(MotorwayStroke));
+                }else if(highwayType == DTypePrimary && DConfig->FlagEnabled(PrimaryEnabled)){
+                    strokeWidth = std::any_cast<double>(DConfig->GetOption(PrimaryStroke));
+                }else if(highwayType == DTypeSecondary && DConfig->FlagEnabled(SecondaryEnabled)){
+                    strokeWidth = std::any_cast<double>(DConfig->GetOption(SecondaryStroke));
+                }else if(highwayType == DTypeTertiary && DConfig->FlagEnabled(TertiaryEnabled)){
+                    strokeWidth = std::any_cast<double>(DConfig->GetOption(TertiaryStroke));
+                }else if(highwayType == DTypeResidential && DConfig->FlagEnabled(ResidentialEnabled)){
+                    strokeWidth = std::any_cast<double>(DConfig->GetOption(ResidentialStroke));
+                }else{
+                    continue;
+                }
+            }
+
+            std::vector<SSVGPoint> points;
+            for (size_t i = 0; i < way->NodeCount(); i++)
+            {
+                auto node = DStreetMap->NodeByID(way->GetNodeID(i));
+                if(node){
+                    double x = MapLonToSVGX(node->Location().DLongitude, minLoc.DLongitude, maxLoc.DLongitude, width, margin);
+                    double y = MapLonToSVGX(node->Location().DLatitude, minLoc.DLatitude, maxLoc.DLatitude, height, margin);
+                    points.push_back({x, y});
+                }
+            }
+
+            TAttributes style = {
+                {"stroke", streetColor},
+                {"stroke-width", std::to_string(strokeWidth)},
+                {"fill", "none"}
+            };
+            writer.SimplePath(points, style);
+        }
+
+                
     }
 
     bool WritePlan(std::shared_ptr<CDataSink> sink, const TTravelPlan &plan){
