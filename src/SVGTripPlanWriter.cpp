@@ -3,6 +3,7 @@
 #include <unordered_set>
 #include "GeographicUtils.h"
 #include "SVGWriter.h"
+#include "StreetMapIndexer.h"
 
 struct CSVGTripPlanWriter::SImplementation{
     struct SConfig : public CTripPlanWriter::SConfig{
@@ -132,10 +133,12 @@ struct CSVGTripPlanWriter::SImplementation{
     std::shared_ptr<CStreetMap> DStreetMap;
     std::shared_ptr<CBusSystem> DBusSystem;
     std::shared_ptr<SConfig> DConfig;
+    std::shared_ptr<CStreetMapIndexer> DStreetMapIndexer;
     SImplementation(std::shared_ptr<CStreetMap> streetmap, std::shared_ptr<CBusSystem> bussystem){
         DStreetMap = streetmap;
         DBusSystem = bussystem;
         DConfig = std::make_shared<SConfig>();
+        DStreetMapIndexer = std::make_shared<CStreetMapIndexer>(streetmap);
     }
     
     ~SImplementation(){
