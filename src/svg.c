@@ -219,3 +219,19 @@ svg_return_t svg_group_end(svg_context_ptr context){
     return context->write_fn(context->user, "</g>\n");
     
 }
+
+svg_return_t svg_text(svg_context_ptr context,
+                      const svg_point_t *position,
+                      const char *text,
+                      const char *style){
+    if (!context || !position || !text) {
+        return SVG_ERR_NULL;
+    }
+    char buffer[256]; 
+    if (style) {
+        snprintf(buffer, sizeof(buffer),"<text x=\"%g\" y=\"%g\" style=\"%s\">%s</text>\n",position->x, position->y, style, text);
+    } else {
+        snprintf(buffer, sizeof(buffer),"<text x=\"%g\" y=\"%g\">%s</text>\n",position->x, position->y, text);
+    }
+    return context->write_fn(context->user, buffer);
+}

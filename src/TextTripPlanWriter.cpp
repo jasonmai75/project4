@@ -24,7 +24,7 @@ struct CTextTripPlanWriter::SImplementation{
             return DEnabledFlags.find(std::string(flag)) != DEnabledFlags.end();
         }
         void EnableFlag(std::string_view flag){
-            if(DValidFlags.find(std::string(flag)) != DEnabledFlags.end()){
+            if(DValidFlags.find(std::string(flag)) != DValidFlags.end()){
                 DEnabledFlags.insert(std::string(flag));
             }
         }
