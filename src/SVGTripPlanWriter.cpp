@@ -1,6 +1,8 @@
 #include "SVGTripPlanWriter.h"
 #include <unordered_map>
 #include <unordered_set>
+#include "GeographicUtils.h"
+#include "SVGWriter.h"
 
 struct CSVGTripPlanWriter::SImplementation{
     struct SConfig : public CTripPlanWriter::SConfig{
@@ -144,8 +146,46 @@ struct CSVGTripPlanWriter::SImplementation{
         return DConfig;
     }
 
+    double MapLonToSVGX(double lon, double minLon, double maxLon, double width, double margin){
+        if(maxLon == minLon){
+            return width/2.0;
+        }
+        return margin + ((lon-minLon) / (maxLon-minLon) ) * (width - 2.0 * margin);
+    }
+
+    double MapLatToSVGY(double lat, double minLat, double maxLat, double height, double margin){
+        if(maxLat == minLat){
+            return height/2.0;
+        }
+        return margin + ((maxLat-lat) / (maxLat-minLat) ) * (height - 2.0 * margin);
+    }
+
     bool WritePlan(std::shared_ptr<CDataSink> sink, const TTravelPlan &plan){
-        return false;
+        if(!sink || plan.empty()){
+            return false;
+        }
+        std::vector<CStreetMap::SLocation> TravelStepLocations;
+        for (auto &step : plan)
+        {
+            auto stop = DBusSystem->StopByID(step.DStopID);
+            if(stop){
+                auto node = DStreetMap->NodeByID(stop->NodeID());
+                if(node){
+                    TravelStepLocations.push_back(node->Location());
+                }
+            }
+        }
+        
+        CStreetMap::SLocation MinLocation, MaxLocation;
+        SGeographicUtils::CalculateExtents(TravelStepLocations, MinLocation, MaxLocation);
+        double width = std::any_cast<double>(DConfig->GetOption(SVGWidth));
+        double height = std::any_cast<double>(DConfig->GetOption(SVGHeight));
+        double margin = std::any_cast<double>(DConfig->GetOption(SVGMarginPixels));
+        CSVGWriter writer(sink, width, height);
+
+
+
+        return true;
     }
 };
 
