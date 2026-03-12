@@ -91,7 +91,8 @@ struct CTripPlanner::SImplementation{
             // Return the best route
             return bestRoute;
         }
-        // Should be almost identitcal to leave time?? 
+        
+        
         std::shared_ptr< SRoute > FindDirectRouteArrivalTime(TStopID src, TStopID dest, TStopTime arriveby) const{
             // Check if Indexer is good
             if(!DIndexer) {
@@ -152,8 +153,18 @@ struct CTripPlanner::SImplementation{
             return bestRoute;
         }
         
+        // Same logic as FindDirectRouteLeaveTime, but instead of returning SRoute, we build TTreavelPlan with 2 steps
         bool FindRouteLeaveTime(TStopID src, TStopID dest, TStopTime leaveat, TTravelPlan &plan) const{
-            return false;
+            if(!DIndexer) {
+                return false;
+            }
+
+            std::unordered_set<std::string> routeNames;
+
+            if(!DIndexer->RoutesByStopIDs(src,dest,routeNames)) {
+                return false;
+            }
+
         }
         
         bool FindRouteArrivalTime(TStopID src, TStopID dest, TStopTime arriveby, TTravelPlan &plan) const{
