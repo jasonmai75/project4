@@ -35,8 +35,56 @@ struct CTripPlanner::SImplementation{
                 return nullptr;
             }
 
+            // What route contains both the src and dest
+            std::unordered_set<std::string> routeNames;
+
+            // Not both src and dest, then return nullptr
+            if(!DIndexer->RoutesByStopIDs(src, dest, routeNames)) {
+                return nullptr;
+            }
             
-            ;
+            // Convert leave time to seconds for easy comparison
+            long long leaveAtSec = ToSeconds(leaveat);
+
+            // Start with worst possible arrival time
+            long long bestArrival = std::numeric_limits<long long>::max();
+
+            std::shared_ptr<SRoute> bestRoute;
+
+            for(const auto &name : routeNames) {
+                auto ri = DIndexer->RouteByName(name);
+                if(!ri) {
+                    continue;
+                }
+
+                // Where is src in route
+                std::size_t srcIdx = ri->FindStopIndex(src);
+                    if(srcIdx == std::numeric_limits<std::size_t>::max()) {
+                    continue;
+                }
+                
+                // Where is dest AFTER src in route
+                std::size_t destIdx = ri->FindStopIndex(dest, srcIdx + 1);
+                if(destIdx == std::numeric_limits<std::size_t>::max()) {
+                    continue;
+                }
+
+                // Check all trips
+                for(std::size_t trip = 0; trip < ri->TripCount(); ++trip) {
+                    long long depSec = ToSeconds(ri->GetStopTime(srcIdx, trip));
+
+                    long long arrSec = ToSeconds(ri->GetStopTime(destIdx, trip));
+                    
+                    // Is this the earliest arrival?
+                    if (arrSec < bestArrival) {
+                        bestArrival = arrSec;
+                        bestRoute = DBusSystem->RouteByName(name);
+                    }
+                }
+            }
+
+            // Return the best route
+            return bestRoute;
         }
         
         std::shared_ptr< SRoute > FindDirectRouteArrivalTime(TStopID src, TStopID dest, TStopTime arriveby) const{
