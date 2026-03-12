@@ -1,21 +1,42 @@
 #include "TripPlanner.h"
+#include "BusSystemIndexer.h"
+#include <limits>
+#include <chrono>
 
+static long long ToSeconds(CBusSystem::TStopTime t) {
+    return t.hours().count() * 3600LL + t.minutes().count() * 60LL + t.seconds().count();
+
+}
+
+static CBusSystem::TStopTime FromSeconds(long long sec) {
+    return CBusSystem::TStopTime(std::chrono::seconds(sec));
+}
 
 struct CTripPlanner::SImplementation{
-        SImplementation(std::shared_ptr<CBusSystem> bussystem){
-
+    std::shared_ptr<CBusSystem> DBusSystem;
+     std::shared_ptr<CBusSystemIndexer> DIndexer;
+        SImplementation(std::shared_ptr<CBusSystem> bussystem) : DBusSystem(bussystem){
+            
+            if(bussystem) {
+                DIndexer = std::make_shared<CBusSystemIndexer>(bussystem);
+            }
+            
         }
 
-        ~SImplementation(){
+        ~SImplementation() = default;
 
-        }
-        
         std::shared_ptr<CBusSystemIndexer> BusSystemIndexer() const{
-            return nullptr;
+            return DIndexer;
         }
         
         std::shared_ptr< SRoute > FindDirectRouteLeaveTime(TStopID src, TStopID dest, TStopTime leaveat) const{
-            return nullptr;
+            // Check if indexer works
+            if(!DIndexer) {
+                return nullptr;
+            }
+
+            
+            ;
         }
         
         std::shared_ptr< SRoute > FindDirectRouteArrivalTime(TStopID src, TStopID dest, TStopTime arriveby) const{
@@ -36,9 +57,7 @@ CTripPlanner::CTripPlanner(std::shared_ptr<CBusSystem> bussystem){
     DImplementation = std::make_unique<SImplementation>(bussystem);
 }
 
-CTripPlanner::~CTripPlanner(){
-
-}
+CTripPlanner::~CTripPlanner() = default;
 
 std::shared_ptr<CBusSystemIndexer> CTripPlanner::BusSystemIndexer() const{
     return DImplementation->BusSystemIndexer();
