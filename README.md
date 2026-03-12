@@ -17,7 +17,8 @@ Student 2: Truong Le (924636822)
 - [HTML basics](https://www.w3schools.com/html/html_basic.asp)
 - [How to use HTML classes](https://www.w3schools.com/html/html_classes.asp )
 - [How to avoid zig zag in find path algorithm](https://stackoverflow.com/questions/26302126/efficient-path-finding-algorithm-avoiding-zigzags)
-- [How to use std::numeric_limits<type> and the <limits> library] https://en.cppreference.com/w/cpp/types/numeric_limits.html
+- [How to use std::numeric_limits<type> and the <limits> library] (https://en.cppreference.com/w/cpp/types/numeric_limits.html)
+- [How priority queue work with Dijkstra algorithm](https://www.youtube.com/watch?v=V6H1qAeB-l4)
 
 Basic git Commands
 git pull --no-rebase origin main
