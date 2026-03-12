@@ -36,91 +36,46 @@ struct CXMLReader::SImplementation{
             XML_ParserFree(DParser);
         }
     }
+    std::string DCharBuffer; // NEW: Buffer to hold text chunks
 
-/*
-Callback called by Expat when an XML start tag is found
+    // Helper to flush the text buffer into the queue
+    static void FlushCharBuffer(SImplementation *impl) {
+        if (!impl->DCharBuffer.empty()) {
+            SXMLEntity entity;
+            entity.DType = SXMLEntity::EType::CharData;
+            entity.DNameData = impl->DCharBuffer;
+            impl->DEntityQueue.push(entity);
+            impl->DCharBuffer.clear();
+        }
+    }
 
-It creates a StartElement entity with the tag name and attribute, 
-then adds it to the entity queue
-
-Parameters: 
-userData: pointer to the SImplementation
-name: name of the XML element
-attrs: array of attribute name-value pairs (terminated by NULL hence attrs[i] != NULL)
-
-Need to use static void because these callbacks are member functions
-*/
     static void XMLStartElementCallback(void *userData, const XML_Char *name, const XML_Char **attrs) {
-        // Convert the void* back to implementation object, because userData was initially a SImplementation*, but Expat 
-        // requires it to be void* in order to work with it, but after Expat works with it, it doesn't switch it back, so we need to switch it back.
-        SImplementation *impl = static_cast<SImplementation*> (userData);
+        auto impl = static_cast<SImplementation*>(userData);
+        FlushCharBuffer(impl); // Flush any text before opening a new tag
 
-        // Create an entity to represent start tag
         SXMLEntity entity;
         entity.DType = SXMLEntity::EType::StartElement;
         entity.DNameData = name;
-
-        // Parse attributes (array will go: value1, value2, value3..., NULL)
         for (int i = 0; attrs[i] != NULL; i += 2) {
-            std::string attr_name = attrs[i];  // first elements (names)
-            std::string attr_value = attrs[i + 1]; // second elements (values)
-            entity.DAttributes.push_back(std::make_pair(attr_name, attr_value));
+            entity.DAttributes.push_back(std::make_pair(attrs[i], attrs[i + 1]));
         }
-
-        // Add entity to the queue
         impl->DEntityQueue.push(entity);
-
     }
 
-    /*
-    Callback called by Expat when an XML closing tag is found
-
-    Creates an EndElement entity with the tag name and adds it to the queue
-
-    Parameters:
-    userData: pointer to SImplementation
-    name: name of the XML element being closed
-    */
     static void XMLEndElementCallback(void *userData, const XML_Char *name) {
-        // Convert to implementation object
-        SImplementation *impl = static_cast<SImplementation*> (userData);
+        auto impl = static_cast<SImplementation*>(userData);
+        FlushCharBuffer(impl); // Flush text before closing the tag
 
-        // Create entity for closing tag
         SXMLEntity entity;
         entity.DType = SXMLEntity::EType::EndElement;
         entity.DNameData = name;
-
-        // Add entity to queue
         impl->DEntityQueue.push(entity);
-
     }
 
-    /*
-    Callback called by Expat when character data is found
-
-    Creates a CharData entity with the text content and adds it to the queue
-
-    Parameters:
-    userData: point to the SImplementation
-    s: pointer to the character data
-    len: length of the character data
-    */
     static void XMLCharacterDataCallback(void *userData, const XML_Char *s, int len) {
-        // Convert to implementation object
-        SImplementation *impl = static_cast<SImplementation*> (userData);
-
-        // Extract character data as a string
-        std::string data(s, len);
-
-        // Create entity for character data
-        SXMLEntity entity; 
-        entity.DType = SXMLEntity::EType::CharData;
-        entity.DNameData = data; 
-
-        // Add entity to queue
-        impl->DEntityQueue.push(entity);
-
-
+        auto impl = static_cast<SImplementation*>(userData);
+        // ONLY APPEND! Do not push to the queue here.
+        impl->DCharBuffer.append(s, len); 
     }
 
 
@@ -171,61 +126,31 @@ skipcdata: If true, it will skip CharData entities and return on the opening and
 returns: true if an entity was successfully read, false if no more entities or error
 */
 bool CXMLReader::ReadEntity(SXMLEntity &entity, bool skipcdata){
-    // Parse more data if queue is both empty and not at the end of the document
-    while (DImplementation->DEntityQueue.empty() && !DImplementation->DEnd)
-    {
-        // Create buffer to read data from the source (to feed expat)
-        const int bufferSize = 512;
-        std::vector<char> buffer;
-
-      /* Inside of the XML_Parse function of the Expat Library, it calls conditionals to call StartElement, or EndElement, or
-     CharacterData callbacks depending on the *data passed into it. */
-
-        // Read from data source into the buffer
-        if(!DImplementation->DSource->Read(buffer, bufferSize)){
-
-            // If no more data is avaliable, flag the end of parsing to true
-            DImplementation->DEnd = true; 
-
-            // Sets the isFinal flag to true to signal successful parsing and end of file.
-            XML_Parse(DImplementation->DParser, "", 0, XML_TRUE);
-
-            // Leave the loop and continue to the DEntityQueue popper
-            break; 
-
+    while (true) {
+        while (DImplementation->DEntityQueue.empty() && !DImplementation->DEnd) {
+            const int bufferSize = 512;
+            std::vector<char> buffer;
+            if (!DImplementation->DSource->Read(buffer, bufferSize)) {
+                DImplementation->DEnd = true; 
+                XML_Parse(DImplementation->DParser, "", 0, XML_TRUE);
+                break; 
+            }
+            if (XML_Parse(DImplementation->DParser, buffer.data(), buffer.size(), XML_FALSE) == XML_STATUS_ERROR) {
+                DImplementation->DEnd = true;
+                return false; 
+            }
         }
-        
-        /*
-        The last function should've read everything into the buffer, now we feed it into Expat 
-        to parse AND CHECK IF THERE'S AN ERROR kills program cleanly if theres an error while
-        also parsing at the same time (feed buffer to Expat parser and check for errors)
-        */ 
-        if(XML_Parse(DImplementation->DParser, buffer.data(), buffer.size(), XML_FALSE) == XML_STATUS_ERROR) {
-            DImplementation->DEnd = true;
-            return false; 
+        if (DImplementation->DEntityQueue.empty()) {
+            return false;
         }
-    }
 
-    /*
-    Have entity in queue(Not empty) -> pop them
-    If skip data is true, read until non-CharData entity
-
-    Pop entities from the queue
-    */
-    while (!DImplementation->DEntityQueue.empty())
-    {   // Get first entity from queue
         entity = DImplementation->DEntityQueue.front();
-
-        // After getting it -> remove it from the queue
         DImplementation->DEntityQueue.pop();
 
-        // Skip character data entities if skipcdata is true
-        if(skipcdata && entity.DType == SXMLEntity::EType::CharData){
-            continue;
+        if (skipcdata && entity.DType == SXMLEntity::EType::CharData) {
+            continue; 
         }
+
         return true;
     }
-
-    // No more entities to read
-    return false;   
 }

@@ -12,6 +12,7 @@ Student 2: Truong Le (924636822)
 - [How to do padding in commandline in C++](https://stackoverflow.com/questions/667183/padding-stl-strings-in-c)
 - [How to use std::chronos](https://en.cppreference.com/w/cpp/chrono/duration.html)
 - [Translating Latitude and Longitude to SVG Coordinates](https://jagmit.co.uk/blog/implementing-dynamic-map-longitude-latitude/)
+- [Dijkstra's Shortest Path Algorithm](https://www.geeksforgeeks.org/dsa/dijkstras-shortest-path-algorithm-using-priority_queue-stl/)
 
 Basic git Commands
 git pull --no-rebase origin main
