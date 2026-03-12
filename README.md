@@ -17,6 +17,7 @@ Student 2: Truong Le (924636822)
 - [HTML basics](https://www.w3schools.com/html/html_basic.asp)
 - [How to use HTML classes](https://www.w3schools.com/html/html_classes.asp )
 - [How to avoid zig zag in find path algorithm](https://stackoverflow.com/questions/26302126/efficient-path-finding-algorithm-avoiding-zigzags)
+- [How to use std::numeric_limits<type> and the <limits> library] https://en.cppreference.com/w/cpp/types/numeric_limits.html
 
 Basic git Commands
 git pull --no-rebase origin main
@@ -34,6 +35,20 @@ And if you end up in a VIM text editor, just do esc + :wq into the text and you 
 - **CStreetMapIndexer** — organizes the street map so it's easy to search. The raw map has no order, so this sorts everything and lets you ask questions like "which roads are in this area?" or "which roads pass through this intersection?"
 - **CBusSystemIndexer** — same idea but for the bus system. Lets you ask "which routes stop at stop 42?" or "which routes go from stop A to stop B?"
 
+### Trip Planner:
+-  You have a bus system.
+-  The bus system has routes.
+- Each route visits stops in a fixed order.
+- Each route runs multiple times a day.
+
+- You have two stops: src and dest.
+- You have a time constraint.
+
+- Job is to find the best trip.
+
+**The Plan:** 
+Search every route and every trip that connects your two stops, skip ones that violate your time constraint, return the one that optimizes your goal.
+
 ### The Overall Flow: Chronological Progression
 1. StreetMap/Bus System Data (data that goes into the program)
 2. Indexers (organizes the data)
@@ -42,6 +57,11 @@ And if you end up in a VIM text editor, just do esc + :wq into the text and you 
 5. CommandLine (ties it all together for the user)
 
 # Generative AI 
+## Prompts 1-8 are all by Claude AI
+### All those prompts have been fed the context of:
+- "I am a second year CS student working on a C++  project that involves building a bus trip planner.The system has a CBusSystem that stores routes and stops, where each route has an ordered list of stops and a schedule of trips. Each trip represents one run of the route per day. I need to implement a search function that finds the best trip between two stops given either a departure constraint or an arrival constraint. I already understand C++ fundamentals, OOP, shared_ptr, pimpl, and the structure of the bus data from building it earlier. I don't need syntax help, only help understanding the logic and algorithm design decisions. Keep responses concise and use simple diagrams where helpful."
+
+
 ## Prompt 1: 
 Debug this Makefile I created, it's mostly complete, I just need debugging and syntax and error fixing, also give me a full list of what was wrong after
 
@@ -622,3 +642,160 @@ Added TripCount() and GetStopTime() into SRoute in XMLBusSystsem.cpp in order to
          TStopTime GetStopTime(std::size_t stopindex, std::size_t tripindex) const noexcept override {
              return {}; // stub if not used
         }   
+
+## Prompt 3:
+what is the difference between finding the earliest arrival vs latest departure in a  schedule search, and how does the initialization of your tracking variable change between the two
+
+## Response 3:
+When finding earliest arrival you want the minimum value so you initialize to the largest possible number so anything you find will be smaller and beat it. When finding latest departure you want the maximum value so you initialize to -1 so any real departure time which is always positive will beat it.
+earliest arrival:
+  start at MAX → any real value beats it
+  update when: newValue < bestValue
+
+latest departure:
+  start at -1  → any real value beats it  
+  update when: newValue > bestValue
+
+## Changes 3:
+// FindRouteLeaveTime - wants earliest arrival
+long long bestArrival = std::numeric_limits<long long>::max(); // <- MAX
+if (arrSec < bestArrival) // <- less than
+
+// FindRouteArrivalTime - wants latest departure
+long long bestDepart = -1LL; // <- -1
+if (depSec > bestDepart) // <- greater than
+
+## Prompt 4:
+if i have multiple bus routes that all go from stop A to stop B, and each route runs multiple times a day, how do i find the single best trip across all routes and all runs at the same time
+
+## Response 4: 
+You use a nested loop. Outer loop goes through each route, inner loop goes through each trip on that route. You keep one tracking variable outside both loops that gets updated whenever you find something better. By the time both loops finish that variable holds the global best across everything.
+bestArrival = MAX
+
+for each route:
+    for each trip on that route:
+        if this trip is better than bestArrival:
+            update bestArrival
+            update bestRoute
+
+return bestRoute
+
+## Change 4:
+long long bestArrival = std::numeric_limits<long long>::max();
+std::shared_ptr<SRoute> bestRoute; // declared OUTSIDE both loops
+
+for (const auto &name : routeNames) {        // outer loop
+    for (size_t trip = 0; trip < ri->TripCount(); ++trip) { // inner loop
+        if (arrSec < bestArrival) {          // updates across ALL routes
+            bestArrival = arrSec;            // and ALL trips at once
+            bestRoute = DBusSystem->RouteByName(name);
+        }
+    }
+}
+
+## Prompt 5:
+if i am checking whether i am too late for something, should my boundary condition use strict less than or less than or equal to, and what real world scenario would break if i used the wrong one
+
+## Response 5: Use strict less than for the skip condition. If you are checking whether to skip something because it happened before you arrived, you only want to skip it if it happened strictly before — not at the exact same moment. The real world example is a bus that departs at exactly the same time you arrive at the stop. With strict less than you catch it. With less than or equal you miss it even though you were there on time.
+```
+you arrive:    8:00 AM
+bus departs:   8:00 AM
+
+strict less than:
+  8:00 < 8:00 → false → don't skip → you catch the bus ✓
+
+less than or equal:
+  8:00 <= 8:00 → true → skip → you miss the bus ✗
+```
+## Changes #5:
+// WRONG - misses buses departing exactly at leaveat
+if (depSec <= leaveAtSec) continue;
+
+// CORRECT - only skips buses that already left
+if (depSec < leaveAtSec) continue;
+
+## Prompt 6:
+if i am tracking two pieces of information that are supposed to always match each other inside a loop, what is the safest way to update them so they never get out of sync
+
+## Response 6:
+Always update both pieces of information together inside the exact same if block. Never update one in one place and the other somewhere else. The moment you separate the updates you create a window where one has changed and the other hasn't which means they describe different things. Putting them in the same block makes the update atomic — either both change or neither does.
+```
+UNSAFE - updates separated, can describe different things:
+  if (newValue < best) best = newValue;
+  ...other code...
+  if (someOtherThing) rebuild relatedData;
+  
+SAFE - always together, always in sync:
+  if (newValue < best) {
+      best = newValue;        ← both updated
+      rebuild relatedData;    ← in same block
+  }
+  ```
+
+## Changes 6:
+if (arrSec < bestArrival) {
+    bestArrival = arrSec;        // tracking var updated
+    bestPlan.clear();            // plan rebuilt immediately
+    bestPlan.push_back(boardStep);   // always matches
+    bestPlan.push_back(arriveStep);  // bestArrival exactly
+}
+
+## Prompt 7:
+if a function modifies something through a reference parameter but then fails partway through, what is the safest pattern to make sure the caller never sees a partially modified result
+
+## Response 7: 
+Never touch the reference parameter until you are completely sure you have a valid result. Build everything into a local variable first. Only copy or move it into the reference parameter as the very last thing before returning success. That way if anything fails at any point during the function the caller's data is completely untouched.
+```
+UNSAFE:
+  ref.clear();              ← caller's data already modified
+  ref.push_back(item1);     ← partially built
+  if (failed) return false; ← caller sees broken data
+
+SAFE:
+  local variable;           ← build here first
+  local.push_back(item1);   ← caller untouched during build
+  if (failed) return false; ← caller's data never touched
+  ref = move(local);        ← only touch ref on success
+  return true;
+  ```
+
+## Changes 7:
+TTravelPlan bestPlan;            // local variable, not plan
+
+bestPlan.push_back(boardStep);   // build locally
+bestPlan.push_back(arriveStep);
+
+if (bestPlan.empty()) return false;  // plan reference untouched
+
+plan = std::move(bestPlan);  // only touch plan on success
+return true;
+
+## Prompt 8:
+if i find item A at position N in an ordered list and then need to find a related item B that must come after A, why is starting my search at N+1 safer than starting at 0
+
+## Response 8:
+Starting at 0 could find B before A in the list which would mean B comes before A not after it. It could also find A itself if A and B happen to be the same item. Starting at N+1 guarantees that whatever you find is strictly after position N so the after relationship is always enforced. It eliminates an entire class of bugs where the order constraint gets violated silently.
+```
+List: [X, B, A, Y, B, Z]
+         0  1  2  3  4  5
+
+A is at index 2
+we want B that comes AFTER A
+
+search from 0: finds B at index 1
+               index 1 < index 2
+               B is actually BEFORE A ✗
+
+search from 3: finds B at index 4
+               index 4 > index 2
+               B is correctly AFTER A ✓
+```
+
+## Changes 8
+std::size_t srcIdx = ri->FindStopIndex(src);
+
+// WRONG - could find dest before src
+std::size_t destIdx = ri->FindStopIndex(dest, 0);
+
+// CORRECT - guarantees dest is after src
+std::size_t destIdx = ri->FindStopIndex(dest, srcIdx + 1);
