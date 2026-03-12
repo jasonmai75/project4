@@ -243,23 +243,32 @@ struct CTripPlanner::SImplementation{
         }
         
         bool FindRouteArrivalTime(TStopID src, TStopID dest, TStopTime arriveby, TTravelPlan &plan) const{
+            // Check if Indexer works
             if(!DIndexer) {
                 return false;
             }
 
+            // Get all routes that go directly from src to dest
             std::unordered_set<std::string> routeNames;
             if(!DIndexer->RoutesByStopIDs(src,dest,routeNames)) {
                 return false;
             }
 
+            // Convert arriveby deadline to seconds for easy comparison
             long long arriveBySec = ToSeconds(arriveby);
+
+            // Start at -1 so real departure times can beat it
             long long bestDepart = -1LL;
 
+            // Holds the best plan found
             TTravelPlan bestPlan;
 
+            // Loop through all routes that contain both src and dest
             for(const auto &name : routeNames) {
+                // Get thr SRouteIndexer for this route
                 auto ri = DIndexer->RouteByName(name);
 
+                // Skip if route somehow not found
                 if(!ri) {
                     continue;
                 }
@@ -276,17 +285,25 @@ struct CTripPlanner::SImplementation{
                     continue;
                 }
 
+                // Check every trip
                 for(std::size_t trip = 0; trip < ri->TripCount(); ++trip) {
+                    // Check arrival time first
                     long long arrSec = ToSeconds(ri->GetStopTime(destIdx, trip));
+
+                    // Skip if trip arrives after deadline
                     if(arrSec > arriveBySec) {
                         continue;
                     }
 
+                    // Check when this trip departs from src
                     long long depSec = ToSeconds(ri->GetStopTime(srcIdx, trip));
+
+                    // Skip if departure isn't later than our current best
                     if(depSec <= bestDepart) {
                         continue;
                     }
 
+                    // Update and rebuild plan with new best trip
                     bestDepart = depSec;
                     bestPlan.clear();
 
@@ -305,11 +322,12 @@ struct CTripPlanner::SImplementation{
                     bestPlan.push_back(arriveStep);
                 }
                 }
-
+                // No valid trip arriving before deadline
                 if(bestPlan.empty()) {
                     return false;
                 }
 
+                // Move best plan into output parameter
                 plan = std::move(bestPlan);
                 return true;
             }
