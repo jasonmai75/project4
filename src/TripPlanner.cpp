@@ -73,6 +73,11 @@ struct CTripPlanner::SImplementation{
                 for(std::size_t trip = 0; trip < ri->TripCount(); ++trip) {
                     long long depSec = ToSeconds(ri->GetStopTime(srcIdx, trip));
 
+                    // skip trips that already left
+                    if(depSec < leaveAtSec) {
+                        continue;
+                    }
+                    
                     long long arrSec = ToSeconds(ri->GetStopTime(destIdx, trip));
                     
                     // Is this the earliest arrival?
@@ -86,9 +91,65 @@ struct CTripPlanner::SImplementation{
             // Return the best route
             return bestRoute;
         }
-        
+        // Should be almost identitcal to leave time?? 
         std::shared_ptr< SRoute > FindDirectRouteArrivalTime(TStopID src, TStopID dest, TStopTime arriveby) const{
-            return nullptr;
+            // Check if Indexer is good
+            if(!DIndexer) {
+                return nullptr;
+            }
+
+            std::unordered_set<std::string> routeNames;
+
+            // Check existence of src and dest
+            if(!DIndexer->RoutesByStopIDs(src, dest, routeNames)) {
+                return nullptr;
+            }
+
+            long long arriveBySec = ToSeconds(arriveby);
+
+            // start at -1 so any real departure can replace it
+            long long bestDepart = -1LL;
+            std::shared_ptr<SRoute> bestRoute;
+
+            for(const auto &name : routeNames) {
+                auto ri = DIndexer->RouteByName(name);
+                if(!ri) {
+                    continue;
+                }
+
+                // Where is src in route
+                std::size_t srcIdx = ri->FindStopIndex(src);
+                    if(srcIdx == std::numeric_limits<std::size_t>::max()) {
+                    continue;
+                }
+                
+                // Where is dest AFTER src in route
+                std::size_t destIdx = ri->FindStopIndex(dest, srcIdx + 1);
+                if(destIdx == std::numeric_limits<std::size_t>::max()) {
+                    continue;
+                }
+
+                for(std::size_t trip = 0; trip < ri->TripCount(); ++trip) {
+                    // Check arrival first 
+                    long long arrSec = ToSeconds(ri->GetStopTime(destIdx,trip));
+
+                    // Skip if arrival is too late
+                    if (arrSec > arriveBySec) {
+                        continue;
+                    }
+
+                    long long depSec = ToSeconds(ri->GetStopTime(srcIdx, trip));
+
+                    // Get LATEST departure (opposite of LeaveTime)
+                    if(depSec > bestDepart) {
+                        bestDepart = depSec;
+                        bestRoute = DBusSystem->RouteByName(name);
+                    }
+                }
+                
+            }
+            // Return Best Route
+            return bestRoute;
         }
         
         bool FindRouteLeaveTime(TStopID src, TStopID dest, TStopTime leaveat, TTravelPlan &plan) const{
