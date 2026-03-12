@@ -38,7 +38,7 @@ struct CTripPlanner::SImplementation{
             // What route contains both the src and dest
             std::unordered_set<std::string> routeNames;
 
-            // Not both src and dest, then return nullptr
+            // Check if routes connect src and dest
             if(!DIndexer->RoutesByStopIDs(src, dest, routeNames)) {
                 return nullptr;
             }
@@ -92,7 +92,6 @@ struct CTripPlanner::SImplementation{
             return bestRoute;
         }
         
-        
         std::shared_ptr< SRoute > FindDirectRouteArrivalTime(TStopID src, TStopID dest, TStopTime arriveby) const{
             // Check if Indexer is good
             if(!DIndexer) {
@@ -101,7 +100,7 @@ struct CTripPlanner::SImplementation{
 
             std::unordered_set<std::string> routeNames;
 
-            // Check existence of src and dest
+           // Check if routes connect src and dest
             if(!DIndexer->RoutesByStopIDs(src, dest, routeNames)) {
                 return nullptr;
             }
@@ -155,15 +154,91 @@ struct CTripPlanner::SImplementation{
         
         // Same logic as FindDirectRouteLeaveTime, but instead of returning SRoute, we build TTreavelPlan with 2 steps
         bool FindRouteLeaveTime(TStopID src, TStopID dest, TStopTime leaveat, TTravelPlan &plan) const{
+            // Check Indexer if it works
             if(!DIndexer) {
                 return false;
             }
 
             std::unordered_set<std::string> routeNames;
 
+            // Check if routes connect src and dest
             if(!DIndexer->RoutesByStopIDs(src,dest,routeNames)) {
                 return false;
             }
+
+            long long leaveAtSec = ToSeconds(leaveat);
+            long long bestArrival = std::numeric_limits<long long>::max();
+
+            // Holds best plan found so far
+            TTravelPlan bestPlan;
+
+            for(const auto &name : routeNames) {
+                // Get the SRouteIndexer for this route
+                auto ri = DIndexer->RouteByName(name);
+
+                // Skip if route is somehow not found
+                if(!ri) {
+                    continue;
+                }
+
+                 // Where is src in route
+                std::size_t srcIdx = ri->FindStopIndex(src);
+                    if(srcIdx == std::numeric_limits<std::size_t>::max()) {
+                    continue;
+                }
+                
+                // Where is dest AFTER src in route
+                std::size_t destIdx = ri->FindStopIndex(dest, srcIdx + 1);
+                if(destIdx == std::numeric_limits<std::size_t>::max()) {
+                    continue;
+                }
+
+                // Check all trips
+                for(std::size_t trip = 0; trip < ri->TripCount(); ++trip) {
+                    // What time does this trip depart from src
+                    long long depSec = ToSeconds(ri->GetStopTime(srcIdx, trip));
+
+                    // Skip trips that already left before arrival at the stop
+                    if(depSec < leaveAtSec) {
+                        continue;
+                    }
+
+                    // Get what time this trip arrives at dest
+                    long long arrSec = ToSeconds(ri->GetStopTime(destIdx, trip));
+
+                    // Skip if this arrival isn't better than what we already found
+                    if(arrSec>= bestArrival) {
+                        continue;
+                    }
+
+                    // This is the new best trip, update and rebuild plan
+                    bestArrival = arrSec;
+                    bestPlan.clear();
+
+                    // Board Step non-empty DRouteName = "get on bus here"
+                    STravelStep boardStep;
+                    boardStep.DStopID = src;                // which stop we board at
+                    boardStep.DTime = FromSeconds(depSec);  // when we board
+                    boardStep.DRouteName = name;            // which route we board
+                    bestPlan.push_back(boardStep);
+
+                    // Arrival Step, Empty DRouteName = "get off bus here"
+                    STravelStep arriveStep;
+                    arriveStep.DStopID = dest;              // which stop we get off at
+                    arriveStep.DTime = FromSeconds(arrSec); // when we arrive
+                    arriveStep.DRouteName = "";             // empty = end of this
+                    bestPlan.push_back(arriveStep);
+                }
+
+            }
+            // If no valid trip found
+             if(bestPlan.empty()) {
+                   return false;
+            }
+            
+            // Move best plan into output parameter
+            plan = std::move(bestPlan);
+            return true;
 
         }
         
