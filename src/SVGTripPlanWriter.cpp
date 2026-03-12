@@ -255,8 +255,12 @@ struct CSVGTripPlanWriter::SImplementation{
         while (!pq.empty()){
             auto [d, u] = pq.top();
             pq.pop();
-            if(u == dest) break;
-            if(d > dist[u]) continue;
+            if(u == dest){
+                break;
+            }
+            if(d > dist[u]){
+                break;
+            }
 
             auto uLoc = DStreetMap->NodeByID(u)->Location();
             auto ways = DStreetMapIndexer->WaysByNodeID(u);
@@ -288,7 +292,6 @@ struct CSVGTripPlanWriter::SImplementation{
                             }
                         }
                         
-                        // Check forward node
                         if(i + 1 < way->NodeCount()){
                             auto v = way->GetNodeID(i + 1);
                             double weight = SGeographicUtils::HaversineDistanceInMiles(uLoc, DStreetMap->NodeByID(v)->Location());
@@ -372,7 +375,9 @@ struct CSVGTripPlanWriter::SImplementation{
                 }
 
                 for (size_t k = 0; k < pathNodes.size(); k++){
-                    if(k == 0 && !allPathPoints.empty()) continue;
+                    if(k == 0 && !allPathPoints.empty()){
+                        continue;
+                    }
                     auto mapNode = DStreetMap->NodeByID(pathNodes[k]);
                     allPathPoints.push_back({MapLonToSVGX(mapNode->Location().DLongitude, cLon, cLat, scale, w),
                                              MapLatToSVGY(mapNode->Location().DLatitude, cLat, scale, h)});
@@ -440,7 +445,8 @@ struct CSVGTripPlanWriter::SImplementation{
                     bool found = false;
                     for (auto &s : stopsToDraw){
                         if(s.Stop == stopNode){
-                            found = true; break;
+                            found = true;
+                            break;
                         }
                     }
                     if(!found){
@@ -452,7 +458,9 @@ struct CSVGTripPlanWriter::SImplementation{
 
         for (size_t i = 0; i < stopsToDraw.size(); i++){
             auto stopNode = stopsToDraw[i].Stop;
-            if(!stopNode) continue;
+            if(!stopNode){
+                continue;
+            }
             
             auto mapNode = DStreetMap->NodeByID(stopNode->NodeID());
             if(mapNode){
