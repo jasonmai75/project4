@@ -238,7 +238,7 @@ struct CSVGTripPlanWriter::SImplementation{
         }
     }
 
-    std::vector<CStreetMap::TNodeID> FindPath(CStreetMap::TNodeID src, CStreetMap::TNodeID dest, CStreetMap::TNodeID initialPrev = 0) {
+    std::vector<CStreetMap::TNodeID> FindPath(CStreetMap::TNodeID src, CStreetMap::TNodeID dest, CStreetMap::TNodeID initialPrev = 0){
         if(src == dest) return {src};
         
         std::priority_queue<std::pair<double, CStreetMap::TNodeID>, 
@@ -246,24 +246,28 @@ struct CSVGTripPlanWriter::SImplementation{
                             std::greater<>> pq;
         std::unordered_map<CStreetMap::TNodeID, double> dist;
         std::unordered_map<CStreetMap::TNodeID, CStreetMap::TNodeID> prev;
+
         pq.push({0.0, src});
         dist[src] = 0.0;
-        
+
         if (initialPrev != 0){
             prev[src] = initialPrev;
         }
+
         while (!pq.empty()){
             auto [d, u] = pq.top();
             pq.pop();
+
             if(u == dest){
                 break;
             }
             if(d > dist[u]){
-                break;
+                continue;
             }
 
             auto uLoc = DStreetMap->NodeByID(u)->Location();
             auto ways = DStreetMapIndexer->WaysByNodeID(u);
+
             for (auto way : ways){
                 for (size_t i = 0; i < way->NodeCount(); i++){
                     if(way->GetNodeID(i) == u){
@@ -291,7 +295,7 @@ struct CSVGTripPlanWriter::SImplementation{
                                 pq.push({dist[v], v});
                             }
                         }
-                        
+
                         if(i + 1 < way->NodeCount()){
                             auto v = way->GetNodeID(i + 1);
                             double weight = SGeographicUtils::HaversineDistanceInMiles(uLoc, DStreetMap->NodeByID(v)->Location());

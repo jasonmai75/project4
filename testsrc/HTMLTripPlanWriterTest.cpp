@@ -37,6 +37,8 @@ TEST_F(HTMLTripPlanWriter, SimpleRoute){
     TravelPlan.push_back({CBusSystem::TStopTime(std::chrono::hours(8) + std::chrono::minutes(25)),82,""});    
     EXPECT_TRUE(DPlanWriter->WritePlan(DDataSink,TravelPlan));
     auto PlanString = DDataSink->String();
+    std::cout<<"================================================================================================================"<<std::endl;
+    std::cout<<PlanString<<std::endl;
     std::vector<std::string> TimeStrings = {"<div class=\"time\">8:00 AM</div>",
                                             "<div class=\"time\">8:25 AM</div>"};
 
@@ -116,6 +118,8 @@ TEST_F(HTMLTripPlanWriter, OneStopRoute){
     int HorizontalLines = 0, VerticalLines = 0, StopCircles = 0, StreetLines = 0, BusLines = 0;
     EXPECT_TRUE(DPlanWriter->WritePlan(DDataSink,TravelPlan));
     auto PlanString = DDataSink->String();
+    std::cout<<"================================================================================================================"<<std::endl;
+    std::cout<<PlanString<<std::endl;
     std::vector<std::string> TimeStrings = {"<div class=\"time\">8:00 AM</div>",
                                             "<div class=\"time\"></div>",
                                             "<div class=\"time\">8:15 AM</div>",
