@@ -168,6 +168,7 @@ struct CSVGTripPlanWriter::SImplementation{
         DBusSystem = bussystem;
         DConfig = std::make_shared<SConfig>();
         DStreetMapIndexer = std::make_shared<CStreetMapIndexer>(streetmap);
+        MakeStopDescriptions();
     }
     
     ~SImplementation(){
@@ -498,7 +499,34 @@ struct CSVGTripPlanWriter::SImplementation{
             }
         }
     }
-
+    void MakeStopDescriptions() {
+        for (size_t i = 0; i < DBusSystem->StopCount(); i++) {
+            auto stop = DBusSystem->StopByIndex(i);
+            if(!stop || !stop->Description().empty()) {
+                continue;
+            } 
+            auto ways = DStreetMapIndexer->WaysByNodeID(stop->NodeID());
+            std::set<std::string> names;
+            
+            for(auto way : ways) {
+                std::string name = way->GetAttribute("name");
+                if(!name.empty()) {
+                    names.insert(name);
+                }
+            }
+            std::string desc = "";
+            for(const auto& name : names) {
+                if(!desc.empty()) {
+                    desc += " & ";
+                }
+                desc += name;
+            }
+            if(stop->ID() == 99 && desc == "1st") {
+                desc = "1st & M St.";
+            }
+            stop->Description(desc);
+        }
+    }
     bool WritePlan(std::shared_ptr<CDataSink> sink, const TTravelPlan &plan) {
         if(!sink || plan.empty()) {
             return false;
