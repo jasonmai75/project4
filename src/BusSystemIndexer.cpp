@@ -5,6 +5,7 @@
 #include <limits>
 #include <utility>
 #include <unordered_set>
+#include <iostream>
 
 struct CBusSystemIndexer::SImplementation{
 struct SRouteIndexer : public CBusSystemIndexer::SRouteIndexer{
@@ -82,7 +83,9 @@ struct SRouteIndexer : public CBusSystemIndexer::SRouteIndexer{
     SImplementation(std::shared_ptr<CBusSystem> bussystem){
         DBusSystem = bussystem;
         for(size_t Index = 0; Index < bussystem->StopCount(); Index++){
-            DSortedStopsByIndex.push_back(bussystem->StopByIndex(Index));
+            auto stop = bussystem->StopByIndex(Index);
+            std::cout << "Indexing Stop ID: " << stop->ID() << " Desc: " << stop->Description() << std::endl;
+            DSortedStopsByIndex.push_back(stop);
         }
         std::sort(DSortedStopsByIndex.begin(), DSortedStopsByIndex.end(),[](std::shared_ptr<SStop> &l, std::shared_ptr<SStop> &r) -> bool{
             return l->ID() < r->ID();

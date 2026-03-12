@@ -41,6 +41,7 @@ TEST_F(SVGTripPlanWriter, SimpleRoute){
     int HorizontalLines = 0, VerticalLines = 0, StopCircles = 0, StreetLines = 0, BusLines = 0;
     EXPECT_TRUE(DPlanWriter->WritePlan(DDataSink,TravelPlan));
     auto PlanString = DDataSink->String();
+    std::cout << PlanString << std::endl;
     auto SVGStringSource = std::make_shared<CStringDataSource>(PlanString);
     auto XMLReader = std::make_shared<CXMLReader>(SVGStringSource);
     std::unordered_set<std::string> Labels;
@@ -102,6 +103,7 @@ TEST_F(SVGTripPlanWriter, OneStopRoute){
     int HorizontalLines = 0, VerticalLines = 0, StopCircles = 0, StreetLines = 0, BusLines = 0;
     EXPECT_TRUE(DPlanWriter->WritePlan(DDataSink,TravelPlan));
     auto PlanString = DDataSink->String();
+    std::cout << PlanString << std::endl;
     auto SVGStringSource = std::make_shared<CStringDataSource>(PlanString);
     auto XMLReader = std::make_shared<CXMLReader>(SVGStringSource);
     std::unordered_set<std::string> Labels;
@@ -112,6 +114,7 @@ TEST_F(SVGTripPlanWriter, OneStopRoute){
     while(XMLReader->ReadEntity(TempEntity,true)){
         if(TempEntity.DType == SXMLEntity::EType::StartElement){
             if(TempEntity.DNameData == "line"){
+                std::cout<<TempEntity.DNameData<<"@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@" <<std::endl;
                 auto X1 = TempEntity.AttributeValue("x1");
                 auto X2 = TempEntity.AttributeValue("x2");
                 auto Y1 = TempEntity.AttributeValue("y1");
@@ -136,6 +139,7 @@ TEST_F(SVGTripPlanWriter, OneStopRoute){
             else if(TempEntity.DNameData == "text"){
                 EXPECT_TRUE(XMLReader->ReadEntity(TempEntity));
                 EXPECT_EQ(TempEntity.DType,SXMLEntity::EType::CharData);
+                std::cout<<TempEntity.DNameData<<"@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@" <<std::endl;
                 Labels.insert(TempEntity.DNameData);
             }
         }

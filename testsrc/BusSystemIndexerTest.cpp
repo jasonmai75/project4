@@ -32,6 +32,7 @@ TEST_F(BusSystemIndexer, SimpleTest){
         }
         EXPECT_TRUE(StopIDs.contains(TempStop->ID()));
         EXPECT_TRUE(StopNodeIDs.contains(TempStop->NodeID()));
+        std::cout<<TempStop->Description()<<std::endl;
         EXPECT_TRUE(StopDescriptions.contains(TempStop->Description()));
     }
     EXPECT_EQ(DBusSystemIndexer->SortedStopByIndex(DBusSystemIndexer->StopCount()),nullptr);
