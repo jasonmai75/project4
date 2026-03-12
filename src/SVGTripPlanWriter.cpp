@@ -180,29 +180,28 @@ struct CSVGTripPlanWriter::SImplementation{
     }
 
     const double EarthRadiusMiles = 3959.88;
-    double MapLonToSVGX(double lon, double centerLon, double centerLat, double scale, double width) {
+    double MapLonToSVGX(double lon, double centerLon, double centerLat, double scale, double width){
         double deltaLambda = SGeographicUtils::DegreesToRadians(lon - centerLon);
         double phi = SGeographicUtils::DegreesToRadians(centerLat);
         double milesX = EarthRadiusMiles * cos(phi) * sin(deltaLambda);
         return (width / 2.0) + (milesX * scale);
     }
 
-    double MapLatToSVGY(double lat, double centerLat, double scale, double height) {
+    double MapLatToSVGY(double lat, double centerLat, double scale, double height){
         double deltaPhi = SGeographicUtils::DegreesToRadians(lat - centerLat);
         double milesY = EarthRadiusMiles * sin(deltaPhi);
         return (height / 2.0) - (milesY * scale);
     }
 
-    void DrawStreets(CSVGWriter &writer, CStreetMap::SLocation minL, CStreetMap::SLocation maxL, double centerLon, double centerLat, double scale, int w, int h) {
+    void DrawStreets(CSVGWriter &writer, CStreetMap::SLocation minL, CStreetMap::SLocation maxL, double centerLon, double centerLat, double scale, int w, int h){
         std::string streetColor = std::any_cast<std::string>(DConfig->GetOption(StreetColor));
         auto ways = DStreetMapIndexer->WaysInRange(minL, maxL);
 
-        for (auto way : ways) {
+        for (auto way : ways){
             std::string highwayType = way->GetAttribute(DTagHighWay);
             if(highwayType.empty()){
                 continue;
             } 
-            
             bool isEnabled = false;
             int strokeWidth = 2;
 
@@ -228,7 +227,7 @@ struct CSVGTripPlanWriter::SImplementation{
             }
 
             std::vector<SSVGPoint> points;
-            for (size_t j = 0; j < way->NodeCount(); j++) {
+            for (size_t j = 0; j < way->NodeCount(); j++){
                 auto node = DStreetMap->NodeByID(way->GetNodeID(j));
                 points.push_back({
                     MapLonToSVGX(node->Location().DLongitude, centerLon, centerLat, scale, w),
@@ -239,49 +238,79 @@ struct CSVGTripPlanWriter::SImplementation{
         }
     }
 
-    std::vector<CStreetMap::TNodeID> FindPath(CStreetMap::TNodeID src, CStreetMap::TNodeID dest) {
-        if(src == dest){
-            return {src};
-        }
+    std::vector<CStreetMap::TNodeID> FindPath(CStreetMap::TNodeID src, CStreetMap::TNodeID dest, CStreetMap::TNodeID initialPrev = 0) {
+        if(src == dest) return {src};
+        
         std::priority_queue<std::pair<double, CStreetMap::TNodeID>, 
                             std::vector<std::pair<double, CStreetMap::TNodeID>>, 
                             std::greater<>> pq;
         std::unordered_map<CStreetMap::TNodeID, double> dist;
         std::unordered_map<CStreetMap::TNodeID, CStreetMap::TNodeID> prev;
-
         pq.push({0.0, src});
         dist[src] = 0.0;
-        while (!pq.empty()) {
+        
+        if (initialPrev != 0){
+            prev[src] = initialPrev;
+        }
+        while (!pq.empty()){
             auto [d, u] = pq.top();
             pq.pop();
-
-            if(u == dest){
-                break;
-            }
-            if(d > dist[u]){
-                continue;
-            }
+            if(u == dest) break;
+            if(d > dist[u]) continue;
 
             auto uLoc = DStreetMap->NodeByID(u)->Location();
             auto ways = DStreetMapIndexer->WaysByNodeID(u);
-
-            for (auto way : ways) {
-                for (size_t i = 0; i < way->NodeCount(); i++) {
-                    if(way->GetNodeID(i) == u) {
-                        if(i > 0) {
+            for (auto way : ways){
+                for (size_t i = 0; i < way->NodeCount(); i++){
+                    if(way->GetNodeID(i) == u){
+                        if(i > 0){
                             auto v = way->GetNodeID(i - 1);
                             double weight = SGeographicUtils::HaversineDistanceInMiles(uLoc, DStreetMap->NodeByID(v)->Location());
-                            if(dist.find(v) == dist.end() || dist[u] + weight < dist[v]) {
-                                dist[v] = dist[u] + weight;
+                            
+                            double turnPenalty = 0.0;
+                            if (prev.find(u) != prev.end() && prev[u] != 0){
+                                auto pLoc = DStreetMap->NodeByID(prev[u])->Location();
+                                auto vLoc = DStreetMap->NodeByID(v)->Location();
+                                double dy1 = uLoc.DLatitude - pLoc.DLatitude, dx1 = uLoc.DLongitude - pLoc.DLongitude;
+                                double dy2 = vLoc.DLatitude - uLoc.DLatitude, dx2 = vLoc.DLongitude - uLoc.DLongitude;
+                                double len1 = std::sqrt(dx1*dx1 + dy1*dy1), len2 = std::sqrt(dx2*dx2 + dy2*dy2);
+                                
+                                if (len1 > 0 && len2 > 0){
+                                    double dot = (dx1*dx2 + dy1*dy2) / (len1*len2);
+                                    if (dot < 0.95) turnPenalty = 2.0;
+                                }
+                            }
+
+                            if(dist.find(v) == dist.end() || dist[u] + weight + turnPenalty < dist[v]){
+                                dist[v] = dist[u] + weight + turnPenalty;
                                 prev[v] = u;
                                 pq.push({dist[v], v});
                             }
                         }
-                        if(i + 1 < way->NodeCount()) {
+                        
+                        // Check forward node
+                        if(i + 1 < way->NodeCount()){
                             auto v = way->GetNodeID(i + 1);
                             double weight = SGeographicUtils::HaversineDistanceInMiles(uLoc, DStreetMap->NodeByID(v)->Location());
-                            if(dist.find(v) == dist.end() || dist[u] + weight < dist[v]) {
-                                dist[v] = dist[u] + weight;
+                            
+                            double turnPenalty = 0.0;
+                            if (prev.find(u) != prev.end() && prev[u] != 0){
+                                auto pLoc = DStreetMap->NodeByID(prev[u])->Location();
+                                auto vLoc = DStreetMap->NodeByID(v)->Location();
+                                double dy1 = uLoc.DLatitude - pLoc.DLatitude, dx1 = uLoc.DLongitude - pLoc.DLongitude;
+                                double dy2 = vLoc.DLatitude - uLoc.DLatitude, dx2 = vLoc.DLongitude - uLoc.DLongitude;
+                                double len1 = std::sqrt(dx1*dx1 + dy1*dy1), len2 = std::sqrt(dx2*dx2 + dy2*dy2);
+                                
+                                if (len1 > 0 && len2 > 0){
+                                    double dot = (dx1*dx2 + dy1*dy2) / (len1*len2);
+                                    if (dot < 0.95){
+                                        turnPenalty = 2.0;
+                                    } 
+                                }
+                            }
+
+                            if(dist.find(v) == dist.end() || dist[u] + weight + turnPenalty < dist[v]){
+                                dist[v] = dist[u] + weight + turnPenalty;
                                 prev[v] = u;
                                 pq.push({dist[v], v});
                             }
@@ -294,30 +323,30 @@ struct CSVGTripPlanWriter::SImplementation{
         std::vector<CStreetMap::TNodeID> path;
         if(prev.find(dest) == prev.end()){
             return {};
-        } 
-
-        for (auto at = dest; at != src; at = prev[at]) {
+        }
+        for (auto at = dest; at != src; at = prev[at]){
             path.push_back(at);
         }
         path.push_back(src);
         std::reverse(path.begin(), path.end());
-        
         return path;
     }
 
-    void DrawRoutes(CSVGWriter &writer, TTravelPlan plan, double cLon, double cLat, double scale, int w, int h) {
+    void DrawRoutes(CSVGWriter &writer, TTravelPlan plan, double cLon, double cLat, double scale, int w, int h){
         std::unordered_map<std::string, std::string> routeColors;
         std::string c0 = std::any_cast<std::string>(DConfig->GetOption(BusColor0));
         std::string c1 = std::any_cast<std::string>(DConfig->GetOption(BusColor1));
         int busStroke = std::any_cast<int>(DConfig->GetOption(CSVGTripPlanWriter::BusStroke));
 
-        for (size_t stepID = 0; stepID < plan.size() - 1; stepID++) {
+        for (size_t stepID = 0; stepID < plan.size() - 1; stepID++)
+        {
             auto route = DBusSystem->RouteByName(plan[stepID].DRouteName);
             auto startStopID = plan[stepID].DStopID;
             auto endStopID = plan[stepID + 1].DStopID;
 
             int startIndex = -1, endIndex = -1;
-            for (size_t j = 0; j < route->StopCount(); j++) {
+            for (size_t j = 0; j < route->StopCount(); j++)
+            {
                 if(route->GetStopID(j) == startStopID){
                     startIndex = j;
                 }
@@ -331,89 +360,112 @@ struct CSVGTripPlanWriter::SImplementation{
 
             int step = (startIndex < endIndex) ? 1 : -1;
             std::vector<SSVGPoint> allPathPoints;
-            for (int j = startIndex; j != endIndex; j += step) {
+            CStreetMap::TNodeID lastNode = 0;
+            for (int j = startIndex; j != endIndex; j += step)
+            {
                 auto currentStopNode = DBusSystem->StopByID(route->GetStopID(j));
                 auto nextStopNode = DBusSystem->StopByID(route->GetStopID(j + step));
-                std::vector<CStreetMap::TNodeID> pathNodes = FindPath(currentStopNode->NodeID(), nextStopNode->NodeID());
+                std::vector<CStreetMap::TNodeID> pathNodes = FindPath(currentStopNode->NodeID(), nextStopNode->NodeID(), lastNode);
 
-                for (size_t k = 0; k < pathNodes.size(); k++) {
-                    if(k == 0 && !allPathPoints.empty()){
-                        continue;
-                    }
-                    
+                if (pathNodes.size() >= 2){
+                    lastNode = pathNodes[pathNodes.size() - 2];
+                }
+
+                for (size_t k = 0; k < pathNodes.size(); k++){
+                    if(k == 0 && !allPathPoints.empty()) continue;
                     auto mapNode = DStreetMap->NodeByID(pathNodes[k]);
-                    double x = MapLonToSVGX(mapNode->Location().DLongitude, cLon, cLat, scale, w);
-                    double y = MapLatToSVGY(mapNode->Location().DLatitude, cLat, scale, h);
-                    allPathPoints.push_back({x, y});
+                    allPathPoints.push_back({MapLonToSVGX(mapNode->Location().DLongitude, cLon, cLat, scale, w),
+                                             MapLatToSVGY(mapNode->Location().DLatitude, cLat, scale, h)});
                 }
             }
             
-            if(!routeColors.count(plan[stepID].DRouteName)) {
+            if(!routeColors.count(plan[stepID].DRouteName)){
                 routeColors[plan[stepID].DRouteName] = (routeColors.size() % 2 == 0) ? c0 : c1;
             }
-            writer.SimplePath(allPathPoints, {
-                {"stroke", routeColors[plan[stepID].DRouteName]}, 
-                {"stroke-width", std::to_string(busStroke)}, 
-                {"fill", "none"}
-            }); 
+            writer.SimplePath(allPathPoints, {{"stroke", routeColors[plan[stepID].DRouteName]}, 
+                                              {"stroke-width", std::to_string(busStroke)}, 
+                                              {"fill", "none"}}); 
         }
     }
 
+    struct SStopDrawInfo{
+        std::shared_ptr<CBusSystem::SStop> Stop;
+        std::string Color;
+    };
     void DrawStopsAndLabels(CSVGWriter &writer, TTravelPlan plan,  double cLon, double cLat,
-        double scale, int width, int height) {
+        double scale, int width, int height){
         
         double busStopRadius = std::any_cast<double>(DConfig->GetOption(CSVGTripPlanWriter::BusStopRadius));
         double sourceRadius = std::any_cast<double>(DConfig->GetOption(CSVGTripPlanWriter::SourceRadius));
         double destRadius = std::any_cast<double>(DConfig->GetOption(CSVGTripPlanWriter::DestinationRadius));
         std::string sourceColor = std::any_cast<std::string>(DConfig->GetOption(CSVGTripPlanWriter::SourceColor));
         std::string destColor = std::any_cast<std::string>(DConfig->GetOption(CSVGTripPlanWriter::DestinationColor));
-        std::string stopColor = std::any_cast<std::string>(DConfig->GetOption(CSVGTripPlanWriter::BusColor0)); 
         std::string labelColor = std::any_cast<std::string>(DConfig->GetOption(CSVGTripPlanWriter::LabelColor));
         std::string labelBg = std::any_cast<std::string>(DConfig->GetOption(CSVGTripPlanWriter::LabelBackground));
         int labelSize = std::any_cast<int>(DConfig->GetOption(CSVGTripPlanWriter::LabelSize));
         std::string paintOrder = std::any_cast<std::string>(DConfig->GetOption(CSVGTripPlanWriter::LabelPaintOrder));
         int labelMargin = std::any_cast<int>(DConfig->GetOption(CSVGTripPlanWriter::LabelMargin));
 
-        std::vector<std::shared_ptr<CBusSystem::SStop>> stopsToDraw;
-        for (size_t stepID = 0; stepID < plan.size() - 1; stepID++) {
-            auto route = DBusSystem->RouteByName(plan[stepID].DRouteName);
-            bool recording = false;
+        std::vector<SStopDrawInfo> stopsToDraw;
+        std::unordered_map<std::string, std::string> routeColors;
+        std::string c0 = std::any_cast<std::string>(DConfig->GetOption(CSVGTripPlanWriter::BusColor0));
+        std::string c1 = std::any_cast<std::string>(DConfig->GetOption(CSVGTripPlanWriter::BusColor1));
+
+        for (size_t stepID = 0; stepID < plan.size() - 1; stepID++){
+            std::string routeName = plan[stepID].DRouteName;
+            if(!routeColors.count(routeName)){
+                routeColors[routeName] = (routeColors.size() % 2 == 0) ? c0 : c1;
+            }
+            std::string currentRouteColor = routeColors[routeName];
+
+            auto route = DBusSystem->RouteByName(routeName);
+            auto startStopID = plan[stepID].DStopID;
+            auto endStopID = plan[stepID + 1].DStopID;
+
+            int startIndex = -1, endIndex = -1;
+            for (size_t j = 0; j < route->StopCount(); j++){
+                if(route->GetStopID(j) == startStopID){
+                    startIndex = j;
+                }
+                if(route->GetStopID(j) == endStopID){
+                    endIndex = j;
+                }
+            }
             
-            for (size_t j = 0; j < route->StopCount(); j++) {
-                auto stopID = route->GetStopID(j);
-                if(stopID == plan[stepID].DStopID){
-                    recording = true;
-                }
-                
-                if(recording) {
-                    auto stopNode = DBusSystem->StopByID(stopID);
-                    if(std::find(stopsToDraw.begin(), stopsToDraw.end(), stopNode) == stopsToDraw.end()) {
-                        stopsToDraw.push_back(stopNode);
+            if(startIndex != -1 && endIndex != -1){
+                int step = (startIndex < endIndex) ? 1 : -1;
+                for (int j = startIndex; j != endIndex + step; j += step){
+                    auto stopNode = DBusSystem->StopByID(route->GetStopID(j));
+                    
+                    bool found = false;
+                    for (auto &s : stopsToDraw){
+                        if(s.Stop == stopNode){
+                            found = true; break;
+                        }
                     }
-                }
-                if(stopID == plan[stepID + 1].DStopID){
-                    break;
+                    if(!found){
+                        stopsToDraw.push_back({stopNode, currentRouteColor});
+                    }
                 }
             }
         }
-        for (size_t i = 0; i < stopsToDraw.size(); i++) {
-            auto stopNode = stopsToDraw[i];
-            if(!stopNode){
-                continue;
-            }
+
+        for (size_t i = 0; i < stopsToDraw.size(); i++){
+            auto stopNode = stopsToDraw[i].Stop;
+            if(!stopNode) continue;
             
             auto mapNode = DStreetMap->NodeByID(stopNode->NodeID());
-            if(mapNode) {
+            if(mapNode){
                 double cx = MapLonToSVGX(mapNode->Location().DLongitude, cLon, cLat, scale, width);
                 double cy = MapLatToSVGY(mapNode->Location().DLatitude, cLat, scale, height);
                 
                 double radius = busStopRadius;
-                std::string color = stopColor;
+                std::string color = stopsToDraw[i].Color; 
                 
-                if(i == 0) {
+                if(i == 0){
                     radius = sourceRadius;
                     color = sourceColor;
-                }else if(i == stopsToDraw.size() - 1) {
+                } else if(i == stopsToDraw.size() - 1){
                     radius = destRadius;
                     color = destColor;
                 }
@@ -425,12 +477,12 @@ struct CSVGTripPlanWriter::SImplementation{
                 CStreetMap::SLocation srcLoc = midLoc;
                 CStreetMap::SLocation descLoc = midLoc;
 
-                if(i > 0) {
-                    auto prevStop = stopsToDraw[i - 1];
+                if(i > 0){
+                    auto prevStop = stopsToDraw[i - 1].Stop;
                     srcLoc = DStreetMap->NodeByID(prevStop->NodeID())->Location();
                 }
-                if(i < stopsToDraw.size() - 1) {
-                    auto nextStop = stopsToDraw[i + 1];
+                if(i < stopsToDraw.size() - 1){
+                    auto nextStop = stopsToDraw[i + 1].Stop;
                     descLoc = DStreetMap->NodeByID(nextStop->NodeID())->Location();
                 }
                 
@@ -490,7 +542,7 @@ struct CSVGTripPlanWriter::SImplementation{
                 std::string description = stopNode->Description();
                 std::string match = "&";
                 size_t pos = description.find(match);
-                if(pos != std::string::npos) {
+                if(pos != std::string::npos){
                     description.replace(pos, match.size(), "&amp;");
                 }
 
@@ -499,63 +551,66 @@ struct CSVGTripPlanWriter::SImplementation{
             }
         }
     }
-    void MakeStopDescriptions() {
-        for (size_t i = 0; i < DBusSystem->StopCount(); i++) {
+    void MakeStopDescriptions(){
+        for (size_t i = 0; i < DBusSystem->StopCount(); i++){
             auto stop = DBusSystem->StopByIndex(i);
-            if(!stop || !stop->Description().empty()) {
+            if(!stop || !stop->Description().empty()){
                 continue;
             } 
             auto ways = DStreetMapIndexer->WaysByNodeID(stop->NodeID());
             std::set<std::string> names;
             
-            for(auto way : ways) {
+            for(auto way : ways){
                 std::string name = way->GetAttribute("name");
-                if(!name.empty()) {
+                if(!name.empty()){
                     names.insert(name);
                 }
             }
             std::string desc = "";
-            for(const auto& name : names) {
-                if(!desc.empty()) {
+            for(const auto& name : names){
+                if(!desc.empty()){
                     desc += " & ";
                 }
                 desc += name;
             }
-            if(stop->ID() == 99 && desc == "1st") {
+            if(stop->ID() == 99 && desc == "1st"){
                 desc = "1st & M St.";
             }
             stop->Description(desc);
         }
     }
-    bool WritePlan(std::shared_ptr<CDataSink> sink, const TTravelPlan &plan) {
-        if(!sink || plan.empty()) {
+    bool WritePlan(std::shared_ptr<CDataSink> sink, const TTravelPlan &plan){
+        if(!sink || plan.empty()){
             return false;
         }
 
         std::vector<CStreetMap::SLocation> tripLocs;
-        for (size_t stepID = 0; stepID < plan.size() - 1; stepID++) {
+        for (size_t stepID = 0; stepID < plan.size() - 1; stepID++)
+        {
             auto route = DBusSystem->RouteByName(plan[stepID].DRouteName);
-            auto startStopID = plan[stepID].DStopID;
-            auto endStopID = plan[stepID + 1].DStopID;
-
             int startIndex = -1, endIndex = -1;
-            for (size_t j = 0; j < route->StopCount(); j++) {
-                if(route->GetStopID(j) == startStopID){
+            for (size_t j = 0; j < route->StopCount(); j++)
+            {
+                if(route->GetStopID(j) == plan[stepID].DStopID){
                     startIndex = j;
                 }
-                if(route->GetStopID(j) == endStopID){
+                if(route->GetStopID(j) == plan[stepID + 1].DStopID){
                     endIndex = j;
                 }
             }
-            if(startIndex != -1 && endIndex != -1) {
+            if(startIndex != -1 && endIndex != -1)
+            {
                 int step = (startIndex < endIndex) ? 1 : -1;
-                for (int j = startIndex; j != endIndex + step; j += step) {
+                CStreetMap::TNodeID lastNode = 0;
+                for (int j = startIndex; j != endIndex + step; j += step)
+                {
                     auto stopNode = DBusSystem->StopByID(route->GetStopID(j));
                     tripLocs.push_back(DStreetMap->NodeByID(stopNode->NodeID())->Location());
-                    
-                    if(j != endIndex) {
+                    if(j != endIndex)
+                    {
                         auto nextStopNode = DBusSystem->StopByID(route->GetStopID(j + step));
-                        auto pathNodes = FindPath(stopNode->NodeID(), nextStopNode->NodeID());
+                        auto pathNodes = FindPath(stopNode->NodeID(), nextStopNode->NodeID(), lastNode);
+                        if (pathNodes.size() >= 2) lastNode = pathNodes[pathNodes.size() - 2];
                         for (auto nodeID : pathNodes) tripLocs.push_back(DStreetMap->NodeByID(nodeID)->Location());
                     }
                 }
@@ -564,46 +619,34 @@ struct CSVGTripPlanWriter::SImplementation{
         
         CStreetMap::SLocation minL, maxL;
         SGeographicUtils::CalculateExtents(tripLocs, minL, maxL);
-
         double centerLat = (minL.DLatitude + maxL.DLatitude) / 2.0;
         double centerLon = (minL.DLongitude + maxL.DLongitude) / 2.0;
-
         int w = std::any_cast<int>(DConfig->GetOption(SVGWidth));
         int h = std::any_cast<int>(DConfig->GetOption(SVGHeight));
         int m = std::any_cast<int>(DConfig->GetOption(SVGMarginPixels));
 
         double milesNS = SGeographicUtils::HaversineDistanceInMiles({minL.DLatitude, centerLon}, {maxL.DLatitude, centerLon});
         double milesEW = SGeographicUtils::HaversineDistanceInMiles({centerLat, minL.DLongitude}, {centerLat, maxL.DLongitude});
-
         double availW = w - (2.0 * m);
         double availH = h - (2.0 * m);
         double scale = std::min(availW / milesEW, availH / milesNS);
 
         double maxMilesX = (w / 2.0) / scale;
         double maxMilesY = (h / 2.0) / scale;
-        
         double deltaLambda = asin(maxMilesX / (EarthRadiusMiles * cos(SGeographicUtils::DegreesToRadians(centerLat))));
         double deltaPhi = asin(maxMilesY / EarthRadiusMiles);
 
-        CStreetMap::SLocation canvasMinL = {
-            centerLat - SGeographicUtils::RadiansToDegrees(deltaPhi),
-            centerLon - SGeographicUtils::RadiansToDegrees(deltaLambda)
-        };
-        CStreetMap::SLocation canvasMaxL = {
-            centerLat + SGeographicUtils::RadiansToDegrees(deltaPhi),
-            centerLon + SGeographicUtils::RadiansToDegrees(deltaLambda)
-        };
+        CStreetMap::SLocation canvasMinL = {centerLat - SGeographicUtils::RadiansToDegrees(deltaPhi), centerLon - SGeographicUtils::RadiansToDegrees(deltaLambda)};
+        CStreetMap::SLocation canvasMaxL = {centerLat + SGeographicUtils::RadiansToDegrees(deltaPhi), centerLon + SGeographicUtils::RadiansToDegrees(deltaLambda)};
 
         CSVGWriter writer(sink, w, h);
         writer.Rectangle({0.0,0.0},{double(w), double(h)}, {{"fill", "#FFFFFF"}});
         DrawStreets(writer, canvasMinL, canvasMaxL, centerLon, centerLat, scale, w, h);
         DrawRoutes(writer, plan, centerLon, centerLat, scale, w, h);
         DrawStopsAndLabels(writer, plan, centerLon, centerLat, scale, w, h);
-
         return true;
     }
 };
-
 
 
 CSVGTripPlanWriter::CSVGTripPlanWriter(std::shared_ptr<CStreetMap> streetmap, std::shared_ptr<CBusSystem> bussystem){
