@@ -243,8 +243,77 @@ struct CTripPlanner::SImplementation{
         }
         
         bool FindRouteArrivalTime(TStopID src, TStopID dest, TStopTime arriveby, TTravelPlan &plan) const{
-            return false;
-        }        
+            if(!DIndexer) {
+                return false;
+            }
+
+            std::unordered_set<std::string> routeNames;
+            if(!DIndexer->RoutesByStopIDs(src,dest,routeNames)) {
+                return false;
+            }
+
+            long long arriveBySec = ToSeconds(arriveby);
+            long long bestDepart = -1LL;
+
+            TTravelPlan bestPlan;
+
+            for(const auto &name : routeNames) {
+                auto ri = DIndexer->RouteByName(name);
+
+                if(!ri) {
+                    continue;
+                }
+
+                 // Where is src in route
+                std::size_t srcIdx = ri->FindStopIndex(src);
+                    if(srcIdx == std::numeric_limits<std::size_t>::max()) {
+                    continue;
+                }
+                
+                // Where is dest AFTER src in route
+                std::size_t destIdx = ri->FindStopIndex(dest, srcIdx + 1);
+                if(destIdx == std::numeric_limits<std::size_t>::max()) {
+                    continue;
+                }
+
+                for(std::size_t trip = 0; trip < ri->TripCount(); ++trip) {
+                    long long arrSec = ToSeconds(ri->GetStopTime(destIdx, trip));
+                    if(arrSec > arriveBySec) {
+                        continue;
+                    }
+
+                    long long depSec = ToSeconds(ri->GetStopTime(srcIdx, trip));
+                    if(depSec <= bestDepart) {
+                        continue;
+                    }
+
+                    bestDepart = depSec;
+                    bestPlan.clear();
+
+                    // Board Step non-empty DRouteName = "get on bus here"
+                    STravelStep boardStep;
+                    boardStep.DStopID = src;                // which stop we board at
+                    boardStep.DTime = FromSeconds(depSec);  // when we board
+                    boardStep.DRouteName = name;            // which route we board
+                    bestPlan.push_back(boardStep);
+
+                    // Arrival Step, Empty DRouteName = "get off bus here"
+                    STravelStep arriveStep;
+                    arriveStep.DStopID = dest;              // which stop we get off at
+                    arriveStep.DTime = FromSeconds(arrSec); // when we arrive
+                    arriveStep.DRouteName = "";             // empty = end of this
+                    bestPlan.push_back(arriveStep);
+                }
+                }
+
+                if(bestPlan.empty()) {
+                    return false;
+                }
+
+                plan = std::move(bestPlan);
+                return true;
+            }
+       
 };
 
 
