@@ -235,7 +235,12 @@ struct CSVGWriter::SImplementation{
         
         return result == SVG_OK;
     }
-
+    bool Text(const SSVGPoint &anchor, const std::string &text, const TAttributes &style){
+        svg_point_t myPos{anchor.DX, anchor.DY};
+        std::string styleStr = ConvertAttributes(style);
+        svg_return_t result = svg_text(DContext, &myPos, text.c_str(), styleStr.c_str());
+        return result == SVG_OK;
+    }
 };
 //CSVGWriter public interface
 //Can be use outside
@@ -299,4 +304,8 @@ bool CSVGWriter::GroupBegin(const TAttributes &attrs){
  */
 bool CSVGWriter::GroupEnd(){
     return DImplementation->GroupEnd();
+}
+
+bool CSVGWriter::Text(const SSVGPoint &anchor, const std::string &text, const TAttributes &style){
+    return DImplementation->Text(anchor, text, style);
 }

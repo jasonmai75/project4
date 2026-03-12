@@ -98,6 +98,10 @@ TEST_SVGTPW_OBJ_FILES	= $(TEST_STRSRC_OBJ) \
 						$(TEST_STRSINK_OBJ) \
 						$(TEST_MOCK_BS_OBJ) \
 						$(TEST_MOCK_SM_OBJ) \
+						$(TEST_SMIDX_OBJ) \
+                        $(TEST_SVGWRITER_OBJ) \
+                        $(TEST_GEOUTILS_OBJ) \
+                        $(TEST_XMLREADER_OBJ) \
 						$(TEST_SVGTPW_OBJ) \
 						$(TEST_SVGTPW_TEST_OBJ) \
 						$(STATIC_LIB)

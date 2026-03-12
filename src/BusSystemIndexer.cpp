@@ -3,6 +3,8 @@
 #include <vector>
 #include <unordered_map>
 #include <limits>
+#include <utility>
+#include <unordered_set>
 
 struct CBusSystemIndexer::SImplementation{
 struct SRouteIndexer : public CBusSystemIndexer::SRouteIndexer{

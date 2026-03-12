@@ -1,4 +1,7 @@
 #include "TripPlannerCommandLine.h"
+#include <algorithm>
+#include <iomanip>
+#include <sstream>
 
 struct CTripPlannerCommandLine::SImplementation{
     std::shared_ptr<CDataSource> DCommandSource;
@@ -12,6 +15,8 @@ struct CTripPlannerCommandLine::SImplementation{
     inline static constexpr std::string_view DExitCommand = "exit";
     inline static constexpr std::string_view DHelpCommand = "help";
     inline static constexpr std::string_view DCountCommand = "count";
+    inline static constexpr std::string_view DConfigCommand = "config";
+    inline static constexpr std::string_view DToggleCommand = "toggle";
 
     SImplementation(std::shared_ptr<SConfig> config){
         DCommandSource = config->DCommandSource;
@@ -59,7 +64,7 @@ struct CTripPlannerCommandLine::SImplementation{
             }
             std::string Argument;
             while((Index < cmd.length()) && !std::isspace(cmd[Index])){
-                Argument += std::string(1,cmd[0]);
+                Argument += std::string(1,cmd[Index]);
                 Index++;
             }
             if(!Argument.empty()){
@@ -96,9 +101,58 @@ struct CTripPlannerCommandLine::SImplementation{
                                     "         Calculates the best trip plan from start to end arriving by time.\n"
                                     "save     Saves the last calculated trip to file\n");
                 }
-                else if(Arguments[0] == DCountCommand){
+                else if(Arguments[0] == DConfigCommand){
+                    auto outConfig = DOutWriter->Config();
+                    auto validFlags = outConfig->ValidFlags();
+                    std::vector<std::string> sortedFlags(validFlags.begin(), validFlags.end());
+                    std::sort(sortedFlags.begin(), sortedFlags.end());
 
-                    OutputString(std::to_string(DTripPlanner->BusSystemIndexer()->StopCount()) + "stops\n");
+                    for (const auto &flag : sortedFlags)
+                    {
+                        std::ostringstream oss;
+                        std::string status = outConfig->FlagEnabled(flag) ? "true" : "false";
+
+                        oss << std::left << std::setw(19) << flag << ": " << status << "\n";
+                        OutputString(oss.str());
+                    }
+
+                    auto validOptions = outConfig->ValidOptions();
+                    std::vector<std::string> sortedOptions(validOptions.begin(),validOptions.end());
+                    std::sort(sortedOptions.begin(),sortedOptions.end());
+
+                    for (auto &option : sortedOptions)
+                    {
+                        std::ostringstream oss;
+                        auto optionType = outConfig->GetOptionType(option);
+                        auto optionValue = outConfig->GetOption(option);
+
+                        std::string valueStr ="";
+                        if(optionType == CTripPlanWriter::SConfig::EOptionType::String){
+                            valueStr = std::any_cast<std::string>(optionValue);
+                        }
+                        else if(optionType == CTripPlanWriter::SConfig::EOptionType::Int){
+                            valueStr = std::to_string(std::any_cast<int>(optionValue));
+                        }else if(optionType == CTripPlanWriter::SConfig::EOptionType::Double){
+                            valueStr = std::to_string(std::any_cast<double>(optionValue));
+                        }
+
+                        oss << std::left << std::setw(19) << option << ": " << valueStr << "\n";
+                        OutputString(oss.str());
+                    }
+                    
+                    
+                    
+                }
+                else if(Arguments[0] == DToggleCommand){
+                    if(Arguments.size() > 1){
+                        std::string flag = Arguments[1];
+                        auto outConfig = DOutWriter->Config();
+                        if(outConfig->FlagEnabled(flag)){
+                            outConfig->DisableFlag(flag);
+                        }else{
+                            outConfig->EnableFlag(flag);
+                        }
+                    }
                 }
             }
         }
