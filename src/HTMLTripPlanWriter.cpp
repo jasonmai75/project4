@@ -7,19 +7,6 @@
 #include "StringDataSink.h"
 
 struct CHTMLTripPlanWriter::SImplementation{
-<<<<<<< HEAD
-    std::shared_ptr<CStreetMap> DStreetMap; // OSM street Map
-    std::shared_ptr<CBusSystem> DBusSystem; // Bus routes and stop data
-    std::shared_ptr<CSVGTripPlanWriter> DSVGTripPlanWriter; // Generates and inline SVG map
-    std::shared_ptr<CTextTripPlanWriter> DTextTripPlanWriter; // Generates plain text schedule
-
-    // Constructor
-    SImplementation(std::shared_ptr<CStreetMap> streetmap, std::shared_ptr<CBusSystem> bussystem){
-        DStreetMap = streetmap;                                                          
-        DBusSystem = bussystem;                                                              
-        DSVGTripPlanWriter = std::make_shared<CSVGTripPlanWriter>(streetmap, bussystem);    
-        DTextTripPlanWriter = std::make_shared<CTextTripPlanWriter>(bussystem);            
-=======
     struct SConfigSync : public CTripPlanWriter::SConfig {
         std::shared_ptr<CTripPlanWriter::SConfig> DSVGConfig;
         std::shared_ptr<CTripPlanWriter::SConfig> DTextConfig;
@@ -89,10 +76,10 @@ struct CHTMLTripPlanWriter::SImplementation{
             return opts;
         }
     };
-    std::shared_ptr<CStreetMap> DStreetMap;
-    std::shared_ptr<CBusSystem> DBusSystem;
-    std::shared_ptr<CSVGTripPlanWriter> DSVGTripPlanWriter;
-    std::shared_ptr<CTextTripPlanWriter> DTextTripPlanWriter;
+    std::shared_ptr<CStreetMap> DStreetMap; // OSM street Map
+    std::shared_ptr<CBusSystem> DBusSystem; // Bus routes and stop data
+    std::shared_ptr<CSVGTripPlanWriter> DSVGTripPlanWriter; // Generates and inline SVG map
+    std::shared_ptr<CTextTripPlanWriter> DTextTripPlanWriter; // Generates plain text schedule
     std::shared_ptr<SConfigSync> DSConfigSync;
     SImplementation(std::shared_ptr<CStreetMap> streetmap, std::shared_ptr<CBusSystem> bussystem){
         DStreetMap = streetmap;
@@ -100,7 +87,6 @@ struct CHTMLTripPlanWriter::SImplementation{
         DSVGTripPlanWriter = std::make_shared<CSVGTripPlanWriter>(streetmap, bussystem);
         DTextTripPlanWriter = std::make_shared<CTextTripPlanWriter>(bussystem);
         DSConfigSync = std::shared_ptr<SConfigSync>(new SConfigSync(DSVGTripPlanWriter->Config(), DTextTripPlanWriter->Config()));
->>>>>>> 725bdb59a65d0c3ae6c2b160cb24b3608e57e3fa
     }
     
     ~SImplementation(){
@@ -118,10 +104,7 @@ struct CHTMLTripPlanWriter::SImplementation{
             return false;
         }
 
-<<<<<<< HEAD
         // Step 1: generate SVG map into string
-=======
->>>>>>> 725bdb59a65d0c3ae6c2b160cb24b3608e57e3fa
         auto svgSink = std::make_shared<CStringDataSink>();
         if(!DSVGTripPlanWriter->WritePlan(svgSink, plan)){
             return false;
