@@ -133,6 +133,8 @@ TEST_F(TripPlannerCommandLine, ConfigTest){
     CTripPlannerCommandLine CommandLine(Config);
 
     EXPECT_TRUE(CommandLine.ProcessCommands());
+    std::cout<<DDataOutSink->String()<<std::endl;
+    std::cout<<"========================================================================================================="<<std::endl;
     EXPECT_EQ(DDataOutSink->String(),"> "
                                      "motorway-enabled   : true\n"
                                      "primary-enabled    : true\n"
@@ -184,6 +186,8 @@ TEST_F(TripPlannerCommandLine, ToggleTest){
     CTripPlannerCommandLine CommandLine(Config);
 
     EXPECT_TRUE(CommandLine.ProcessCommands());
+    std::cout<<DDataOutSink->String()<<std::endl;
+    std::cout<<"========================================================================================================="<<std::endl;
     EXPECT_EQ(DDataOutSink->String(),"> Flag residential-enabled is now false\n"
                                      "> Flag tertiary-enabled is now false\n"
                                      "> Flag primary-enabled is now false\n"
@@ -238,6 +242,8 @@ TEST_F(TripPlannerCommandLine, SetTest){
     CTripPlannerCommandLine CommandLine(Config);
 
     EXPECT_TRUE(CommandLine.ProcessCommands());
+    std::cout<<DDataOutSink->String()<<std::endl;
+    std::cout<<"========================================================================================================="<<std::endl;
     EXPECT_EQ(DDataOutSink->String(),"> Option label-size is now 14\n"
                                      "> Option destination-radius is now 7.000000\n"
                                      "> Option bus-color-0 is now #00FFAA\n"
@@ -356,6 +362,8 @@ TEST_F(TripPlannerCommandLine, SaveTest){
     EXPECT_CALL(*DMockFactory,CreateSink("la_480_28_82.html"))
                 .WillRepeatedly(testing::Return(SaveSink));
     EXPECT_TRUE(CommandLine.ProcessCommands());
+    std::cout<<DDataOutSink->String()<<std::endl;
+    std::cout<<"========================================================================================================="<<std::endl;
     EXPECT_EQ(DDataOutSink->String(),"> "
                                     " 8:00 AM: Take the F bus from 3rd & K St. (stop 28).\n"
                                     " 8:10 AM: Get off the F bus at 9th & C St. (stop 82).\n"
@@ -399,6 +407,8 @@ TEST_F(TripPlannerCommandLine, ErrorTest){
     CTripPlannerCommandLine CommandLine(Config);
 
     EXPECT_TRUE(CommandLine.ProcessCommands());
+    std::cout<<DDataOutSink->String()<<std::endl;
+    std::cout<<"========================================================================================================="<<std::endl;
     EXPECT_EQ(DDataOutSink->String(), "> "
                                     "> "
                                     "> "
@@ -414,6 +424,8 @@ TEST_F(TripPlannerCommandLine, ErrorTest){
                                     "> "
                                     "> "
                                     "> ");
+    std::cout<<DDataErrSink->String()<<std::endl;
+    std::cout<<"========================================================================================================="<<std::endl;
     EXPECT_EQ(DDataErrSink->String(),  "Unknown command \"foo\" type help for help.\n"
                                     "Invalid stop command, see help.\n"
                                     "Invalid stop parameter, see help.\n"
