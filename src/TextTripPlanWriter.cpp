@@ -54,21 +54,25 @@ struct CTextTripPlanWriter::SImplementation{
             auto iterator = DOptionTypes.find(std::string(option));
             return (iterator != DOptionTypes.end()) ? iterator->second : EOptionType::None;
         }
+<<<<<<< HEAD
 
         // No valid options are registered, so don't worry about this
         void SetOption(std::string_view option, int value){
+=======
+        void SetOption(std::string_view option, int value) override{
+>>>>>>> 725bdb59a65d0c3ae6c2b160cb24b3608e57e3fa
             if(DValidOptions.find(std::string(option)) != DValidOptions.end()){
                 DOptions[std::string(option)] = value;
                 DOptionTypes[std::string(option)] = EOptionType::Int;
             }
         }
-        void SetOption(std::string_view option, double value){
+        void SetOption(std::string_view option, double value) override{
             if(DValidOptions.find(std::string(option)) != DValidOptions.end()){
                 DOptions[std::string(option)] = value;
                 DOptionTypes[std::string(option)] = EOptionType::Double;
             }
         }
-        void SetOption(std::string_view option, const std::string &value){
+        void SetOption(std::string_view option, const std::string &value) override{
             if(DValidOptions.find(std::string(option)) != DValidOptions.end()){
                 DOptions[std::string(option)] = value;
                 DOptionTypes[std::string(option)] = EOptionType::String;

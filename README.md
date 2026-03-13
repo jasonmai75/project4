@@ -58,7 +58,7 @@ Search every route and every trip that connects your two stops, skip ones that v
 5. CommandLine (ties it all together for the user)
 
 # Generative AI 
-## Prompts 1-8 are all by Claude AI
+## Prompts 1-11 are all by Claude AI
 ### All those prompts have been fed the context of:
 - "I am a second year CS student working on a C++  project that involves building a bus trip planner.The system has a CBusSystem that stores routes and stops, where each route has an ordered list of stops and a schedule of trips. Each trip represents one run of the route per day. I need to implement a search function that finds the best trip between two stops given either a departure constraint or an arrival constraint. I already understand C++ fundamentals, OOP, shared_ptr, pimpl, and the structure of the bus data from building it earlier. I don't need syntax help, only help understanding the logic and algorithm design decisions. Keep responses concise and use simple diagrams where helpful."
 
@@ -795,8 +795,189 @@ search from 3: finds B at index 4
 ## Changes 8
 std::size_t srcIdx = ri->FindStopIndex(src);
 
-// WRONG - could find dest before src
-std::size_t destIdx = ri->FindStopIndex(dest, 0);
+### Okay these next prompts were technically prompts 1 and 2 and 3, but I had done them on a different program and forgot to carry it onto my new program after github technical issues, so just a quick side note.
 
-// CORRECT - guarantees dest is after src
-std::size_t destIdx = ri->FindStopIndex(dest, srcIdx + 1);
+## Prompt 9:
+I have a CBusSystem class with an SRoute struct that has TripCount() and GetStopTime() as pure virtual functions. My XMLBusSystem implementation just has stubs returning 0 and empty values. The bus system XML has a schedule attribute on each route like '07:00 AM, 07:30 AM...' and each routestop has a delta attribute like '+5.0'. How should I think about storing this data to actually implement TripCount and GetStopTime properly?
+
+## Response 9:
+Let's think about what's actually happening in the real world first, because that'll make the data model obvious.
+A bus route like Route A runs multiple times a day. Each time it runs is called a trip. So when you see schedule="07:00 AM,07:30 AM,08:00 AM..." in the XML, each one of those times is a separate trip — the bus starts Route A at 7:00, then again at 7:30, then again at 8:00, and so on. That's what TripCount should reflect: how many times does this route run in a day. If there are 31 times in that schedule string, TripCount returns 31.
+Now the delta. Each routestop has something like delta="+5.0". This is the offset from the trip's start time to when the bus actually reaches that particular stop. So if the trip starts at 7:00 AM and a stop has delta +5.0, the bus gets there at 7:05. The delta is the same regardless of which trip it is — the bus always takes the same amount of time to reach each stop, just starting from a different time.
+So GetStopTime(stopindex, tripindex) is answering: for trip number tripindex, what time does the bus reach stop number stopindex? The answer is always: start time of that trip + delta for that stop.
+To store this you need two vectors in SRoute. One for trip start times, one for deltas. They work together like this:"
+// Conceptually what you need:
+SRoute contains:
+    stopIDs[]       = [stopA, stopB, stopC]
+    deltas[]        = [0,     5min,  12min ]   // one per stop, same order
+    tripStarts[]    = [7:00,  7:30,  8:00  ]   // one per trip
+
+// GetStopTime(stopindex=1, tripindex=2) would be:
+//   tripStarts[2] + deltas[1]
+//   = 8:00 + 5min
+//   = 8:05
+
+// TripCount() just returns:
+//   tripStarts.size()  →  3
+"The noexcept on GetStopTime means it cannot throw, so before doing the addition you need to bounds check both indices and return something safe if they're out of range.
+
+## Changes 9:
+Replace the stub implementations. The bounds check returns a zero time rather than crashing since noexcept means no exceptions allowed. Both vectors are declared as long long because seconds since midnight can exceed what an int holds for later trips in the day, and when you start adding deltas on top you want to be safe.
+
+// Add to SRoute:
+std::vector<long long> DDeltas;         
+std::vector<long long> DTripStartTimes; 
+
+std::size_t TripCount() const noexcept override {
+    return DTripStartTimes.size();
+}
+
+TStopTime GetStopTime(std::size_t stopindex, std::size_t tripindex) const noexcept override {
+    if(stopindex >= DDeltas.size() || tripindex >= DTripStartTimes.size()){
+        return TStopTime(std::chrono::seconds(0));
+    }
+    long long totalSec = DTripStartTimes[tripindex] + DDeltas[stopindex];
+    return TStopTime(std::chrono::seconds(totalSec));
+}
+
+## Prompt 10:
+- Okay so now I understand the data model. The schedule string looks like '07:00 AM,07:30 AM,08:00 AM'. How do I parse that into seconds since midnight in C++? And the delta values look like '+5.0' what unit are they in and how do I convert them?
+
+## Response 10:
+For the schedule string the approach has two layers. The outer layer splits on commas, the inner layer parses each individual token.
+
+For splitting, stringstream with getline is the idiomatic C++ approach. You wrap the string in a stringstream, then loop with getline using ',' as the delimiter — each call gives you the next token.
+
+For parsing each token like '07:00 AM', you use istringstream and extract piece by piece with >>. Hour as int, then a char to swallow the colon, then minute as int, then the AM/PM as a string. The >> operator handles whitespace automatically between minute and AM/PM.
+
+Then you convert to seconds since midnight. Use long long literals because you'll be adding deltas to these later. The 12-hour clock has two edge cases that trip people up:"
+```
+// Pseudocode for parsing one token like "07:00 AM":
+extract hour, colon, minute, ampm from token
+
+if ampm == "PM" and hour != 12:
+    hour += 12          // 1PM->13, 2PM->14, etc.
+if ampm == "AM" and hour == 12:
+    hour = 0            // 12AM is midnight, not hour 12
+
+seconds = hour * 3600 + minute * 60
+
+// Examples:
+// "07:00 AM" -> hour=7,  ampm=AM -> 7*3600  = 25200
+// "12:00 AM" -> hour=12, ampm=AM -> hour=0  -> 0
+// "12:10 PM" -> hour=12, ampm=PM -> stays 12 -> 43800
+// "01:10 PM" -> hour=1,  ampm=PM -> hour=13 -> 47400
+```
+
+"For the deltas, the values are in minutes — '+5.0' means 5 minutes. Multiply by 60 to get seconds. Before calling stod you must strip the leading '+' because stod can handle '-' but not '+':"
+```
+// Pseudocode for delta parsing:
+deltaStr = "+5.0"
+
+if first char is '+':
+    strip it -> "5.0"
+
+deltaSec = stod("5.0") * 60   // minutes to seconds
+         = 5.0 * 60
+         = 300 seconds
+```
+
+## Changes 10:
+ParseSchedule is its own helper rather than inline in ParseRoute because it's a self-contained problem and keeping it separate makes ParseRoute easier to read. The delta push has to happen inside the same if block as the stop ID push, if they ever get out of sync, meaning DStopIDs and DDeltas have different sizes, then GetStopTime will hit the bounds check for valid indices and return zero times, which would be a very hard bug to track down.
+
+// New helper function added to SImplementation:
+std::vector<long long> ParseSchedule(const std::string &scheduleStr){
+    std::vector<long long> times;
+    if(scheduleStr.empty()) return times;
+    std::stringstream ss(scheduleStr);
+    std::string token;
+    while(std::getline(ss, token, ',')){
+        int hour, minute;
+        char colon;
+        std::string ampm;
+        std::istringstream ts(token);
+        ts >> hour >> colon >> minute >> ampm;
+        if(ampm == "PM" && hour != 12) hour += 12;
+        if(ampm == "AM" && hour == 12) hour = 0;
+        times.push_back(hour * 3600LL + minute * 60LL);
+    }
+    return times;
+}
+
+// Inside ParseRoute, before the entity reading loop:
+std::string scheduleStr = route.AttributeValue("schedule");
+NewRoute->DTripStartTimes = ParseSchedule(scheduleStr);
+
+// Inside the routestop loop, after pushing the stop ID:
+std::string deltaStr = TempEntity.AttributeValue("delta");
+long long deltaSec = 0;
+if(!deltaStr.empty()){
+    if(deltaStr[0] == '+') deltaStr = deltaStr.substr(1);
+    deltaSec = static_cast<long long>(std::stod(deltaStr) * 60.0);
+}
+NewRoute->DDeltas.push_back(deltaSec);
+
+## Prompt 11:
+My GetStopTime needs to return a TStopTime which is defined as std::chrono::hh_mm_ssstd::chrono::seconds. I have the total seconds as a long long. How do I construct one of those, and is there anything tricky about this type I should know before I start comparing times in my TripPlanner?
+
+## Responses 11:
+Construction is the easy part — hh_mm_ss takes a duration in its constructor, and chrono::seconds is a duration, so you just wrap your long long and pass it in: `TStopTime(std::chrono::seconds(totalSec))`.
+
+The hard part is what comes next. hh_mm_ss is a display type, added to C++20 for formatting times readably. It has no arithmetic operators. You cannot add, subtract, or compare two hh_mm_ss values. This is a real problem in TripPlanner where you need to constantly ask things like 'did this trip already leave before my requested time?'
+
+The solution is a ToSeconds helper that converts back to a plain number. The critical thing to understand is how hh_mm_ss stores its components:"
+```
+// hh_mm_ss breaks time into COMPONENTS, not totals:
+// For a time of 8:15:00 AM (= 29700 total seconds):
+
+t.hours()   = 8    // just the hours part
+t.minutes() = 15   // just the minutes part, NOT total minutes
+t.seconds() = 0    // just the seconds part
+
+// WRONG way to convert back:
+wrong = t.minutes().count() * 60 + t.seconds().count()
+      = 15 * 60 + 0
+      = 900   // way off, missing the 8 hours entirely
+
+// RIGHT way to convert back:
+correct = t.hours().count()   * 3600
+        + t.minutes().count() * 60
+        + t.seconds().count()
+        = 8*3600 + 15*60 + 0
+        = 29700  // correct
+
+// Then comparing times becomes straightforward:
+depSec = ToSeconds(route.GetStopTime(srcIdx, trip))
+if depSec < leaveAtSec:
+    skip this trip    // already departed
+"You also want a FromSeconds going the other direction for when you build your travel plan and need to store computed arrival/departure times back as TStopTime values
+```
+
+## Changes 11:
+ToSeconds and FromSeconds are static free functions rather than methods because they don't belong to any particular class, they're utilities that bridge the gap between the interface type the project requires and the arithmetic you actually need. Every single time comparison in the entire TripPlanner goes through ToSeconds, never directly comparing TStopTime values.
+
+// Add to TripPlanner.cpp, outside any class at the top:
+static long long ToSeconds(CBusSystem::TStopTime t) {
+    return t.hours().count() * 3600LL 
+         + t.minutes().count() * 60LL 
+         + t.seconds().count();
+}
+
+static CBusSystem::TStopTime FromSeconds(long long sec) {
+    return CBusSystem::TStopTime(std::chrono::seconds(sec));
+}
+
+// Every time comparison in TripPlanner now goes through ToSeconds first:
+long long leaveAtSec = ToSeconds(leaveat);
+
+// Then inside the trip loop:
+long long depSec = ToSeconds(ri->GetStopTime(srcIdx, trip));
+if(depSec < leaveAtSec) continue;
+
+long long arrSec = ToSeconds(ri->GetStopTime(destIdx, trip));
+if(arrSec < bestArrival){
+    bestArrival = arrSec;
+}
+
+// When building the travel plan output:
+bestPlan.push_back({FromSeconds(depSec), src, routeA->Name()});

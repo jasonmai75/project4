@@ -7,6 +7,7 @@
 #include "StringDataSink.h"
 
 struct CHTMLTripPlanWriter::SImplementation{
+<<<<<<< HEAD
     std::shared_ptr<CStreetMap> DStreetMap; // OSM street Map
     std::shared_ptr<CBusSystem> DBusSystem; // Bus routes and stop data
     std::shared_ptr<CSVGTripPlanWriter> DSVGTripPlanWriter; // Generates and inline SVG map
@@ -18,6 +19,88 @@ struct CHTMLTripPlanWriter::SImplementation{
         DBusSystem = bussystem;                                                              
         DSVGTripPlanWriter = std::make_shared<CSVGTripPlanWriter>(streetmap, bussystem);    
         DTextTripPlanWriter = std::make_shared<CTextTripPlanWriter>(bussystem);            
+=======
+    struct SConfigSync : public CTripPlanWriter::SConfig {
+        std::shared_ptr<CTripPlanWriter::SConfig> DSVGConfig;
+        std::shared_ptr<CTripPlanWriter::SConfig> DTextConfig;
+
+        SConfigSync(std::shared_ptr<CTripPlanWriter::SConfig> svg, 
+                           std::shared_ptr<CTripPlanWriter::SConfig> text) 
+            : DSVGConfig(svg), DTextConfig(text) {}
+
+        void EnableFlag(std::string_view flag) override {
+            if (DSVGConfig->ValidFlags().count(std::string(flag))) DSVGConfig->EnableFlag(flag);
+            if (DTextConfig->ValidFlags().count(std::string(flag))) DTextConfig->EnableFlag(flag);
+        }
+
+        void DisableFlag(std::string_view flag) override {
+            if (DSVGConfig->ValidFlags().count(std::string(flag))) DSVGConfig->DisableFlag(flag);
+            if (DTextConfig->ValidFlags().count(std::string(flag))) DTextConfig->DisableFlag(flag);
+        }
+
+        bool FlagEnabled(std::string_view flag) const override {
+            if (DSVGConfig->ValidFlags().count(std::string(flag))) return DSVGConfig->FlagEnabled(flag);
+            if (DTextConfig->ValidFlags().count(std::string(flag))) return DTextConfig->FlagEnabled(flag);
+            return false;
+        }
+
+        std::any GetOption(std::string_view option) const override {
+            // Priority given to SVG options
+            if (DSVGConfig->ValidOptions().count(std::string(option))) return DSVGConfig->GetOption(option);
+            return DTextConfig->GetOption(option);
+        }
+
+        std::unordered_set<std::string> ValidFlags() const override {
+            auto flags = DSVGConfig->ValidFlags();
+            auto textFlags = DTextConfig->ValidFlags();
+            flags.insert(textFlags.begin(), textFlags.end());
+            return flags;
+        }
+
+        EOptionType GetOptionType(std::string_view option) const override {
+            if (DSVGConfig->ValidOptions().count(std::string(option))) return DSVGConfig->GetOptionType(option);
+            return DTextConfig->GetOptionType(option);
+        }
+
+        void SetOption(std::string_view option, int value) override {
+            if (DSVGConfig->ValidOptions().count(std::string(option))) DSVGConfig->SetOption(option, value);
+            if (DTextConfig->ValidOptions().count(std::string(option))) DTextConfig->SetOption(option, value);
+        }
+
+        void SetOption(std::string_view option, double value) override {
+            if (DSVGConfig->ValidOptions().count(std::string(option))) DSVGConfig->SetOption(option, value);
+            if (DTextConfig->ValidOptions().count(std::string(option))) DTextConfig->SetOption(option, value);
+        }
+
+        void SetOption(std::string_view option, const std::string &value) override {
+            if (DSVGConfig->ValidOptions().count(std::string(option))) DSVGConfig->SetOption(option, value);
+            if (DTextConfig->ValidOptions().count(std::string(option))) DTextConfig->SetOption(option, value);
+        }
+
+        void ClearOption(std::string_view option) override {
+            DSVGConfig->ClearOption(option);
+            DTextConfig->ClearOption(option);
+        }
+
+        std::unordered_set<std::string> ValidOptions() const override {
+            auto opts = DSVGConfig->ValidOptions();
+            auto textOpts = DTextConfig->ValidOptions();
+            opts.insert(textOpts.begin(), textOpts.end());
+            return opts;
+        }
+    };
+    std::shared_ptr<CStreetMap> DStreetMap;
+    std::shared_ptr<CBusSystem> DBusSystem;
+    std::shared_ptr<CSVGTripPlanWriter> DSVGTripPlanWriter;
+    std::shared_ptr<CTextTripPlanWriter> DTextTripPlanWriter;
+    std::shared_ptr<SConfigSync> DSConfigSync;
+    SImplementation(std::shared_ptr<CStreetMap> streetmap, std::shared_ptr<CBusSystem> bussystem){
+        DStreetMap = streetmap;
+        DBusSystem = bussystem;
+        DSVGTripPlanWriter = std::make_shared<CSVGTripPlanWriter>(streetmap, bussystem);
+        DTextTripPlanWriter = std::make_shared<CTextTripPlanWriter>(bussystem);
+        DSConfigSync = std::shared_ptr<SConfigSync>(new SConfigSync(DSVGTripPlanWriter->Config(), DTextTripPlanWriter->Config()));
+>>>>>>> 725bdb59a65d0c3ae6c2b160cb24b3608e57e3fa
     }
     
     ~SImplementation(){
@@ -26,7 +109,7 @@ struct CHTMLTripPlanWriter::SImplementation{
 
     // Gives config access to SVG writer
     std::shared_ptr<SConfig> Config() const{
-        return DSVGTripPlanWriter->Config();
+        return DSConfigSync;
     }
 
     // Produces HTML document combining inline SVG map and CSS grid schedule table
@@ -35,7 +118,10 @@ struct CHTMLTripPlanWriter::SImplementation{
             return false;
         }
 
+<<<<<<< HEAD
         // Step 1: generate SVG map into string
+=======
+>>>>>>> 725bdb59a65d0c3ae6c2b160cb24b3608e57e3fa
         auto svgSink = std::make_shared<CStringDataSink>();
         if(!DSVGTripPlanWriter->WritePlan(svgSink, plan)){
             return false;
