@@ -130,9 +130,15 @@ TEST_TPCL_OBJ_FILES		= $(TEST_STRSRC_OBJ) \
 						$(TEST_MOCK_SM_OBJ) \
 						$(TEST_BSIDX_OBJ) \
 						$(TEST_SMIDX_OBJ) \
+<<<<<<< HEAD
+						$(TEST_SVGWRITER_OBJ) \
+						$(TEST_GEOUTILS_OBJ) \
+						$(TEST_XMLREADER_OBJ) \
+=======
                         $(TEST_SVGWRITER_OBJ) \
                         $(TEST_GEOUTILS_OBJ) \
                         $(TEST_XMLREADER_OBJ) \
+>>>>>>> 725bdb59a65d0c3ae6c2b160cb24b3608e57e3fa
 						$(TEST_HTMLTPW_OBJ) \
 						$(TEST_SVGTPW_OBJ) \
 						$(TEST_TEXTTPW_OBJ) \

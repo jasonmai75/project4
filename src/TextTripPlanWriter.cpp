@@ -9,40 +9,58 @@
 struct CTextTripPlanWriter::SImplementation{
 
     struct SConfig : public CTripPlanWriter::SConfig{
-        std::unordered_set<std::string> DEnabledFlags;
-        std::unordered_map<std::string, std::any> DOptions;
-        std::unordered_map<std::string, EOptionType> DOptionTypes;
+        std::unordered_set<std::string> DEnabledFlags;          // Enabled flags
+        std::unordered_map<std::string, std::any> DOptions;     // Key-value options
+        std::unordered_map<std::string, EOptionType> DOptionTypes;  // Type of each option
 
-        std::unordered_set<std::string> DValidFlags;
-        std::unordered_set<std::string> DValidOptions;
+        std::unordered_set<std::string> DValidFlags;    // All valid flags
+        std::unordered_set<std::string> DValidOptions;  // All valid options
         
+        // Constructor
         SConfig(){
             DValidFlags = {std::string(Verbose)};
         }
 
+        // Returns true if flag is enabled
         bool FlagEnabled(std::string_view flag) const{
             return DEnabledFlags.find(std::string(flag)) != DEnabledFlags.end();
         }
+
+        // Enables flag if its valid
         void EnableFlag(std::string_view flag){
             if(DValidFlags.find(std::string(flag)) != DValidFlags.end()){
                 DEnabledFlags.insert(std::string(flag));
             }
         }
+
+        // Disables flag
         void DisableFlag(std::string_view flag){
             DEnabledFlags.erase(std::string(flag));
         }
+
+        // Returns any stored value for an option
         std::any GetOption(std::string_view option) const{
             auto iterator = DOptions.find(std::string(option));
             return (iterator != DOptions.end()) ? iterator->second : std::any();
         }
+
+        // Returns set of all valid flag names
         std::unordered_set<std::string> ValidFlags() const{
             return DValidFlags;
         }
+
+        // Returns stored type for given option key
         EOptionType GetOptionType(std::string_view option) const{
             auto iterator = DOptionTypes.find(std::string(option));
             return (iterator != DOptionTypes.end()) ? iterator->second : EOptionType::None;
         }
+<<<<<<< HEAD
+
+        // No valid options are registered, so don't worry about this
+        void SetOption(std::string_view option, int value){
+=======
         void SetOption(std::string_view option, int value) override{
+>>>>>>> 725bdb59a65d0c3ae6c2b160cb24b3608e57e3fa
             if(DValidOptions.find(std::string(option)) != DValidOptions.end()){
                 DOptions[std::string(option)] = value;
                 DOptionTypes[std::string(option)] = EOptionType::Int;
@@ -60,20 +78,28 @@ struct CTextTripPlanWriter::SImplementation{
                 DOptionTypes[std::string(option)] = EOptionType::String;
             }
         }
+
+        // Removes stored option and its type 
         void ClearOption(std::string_view option){
             if(DValidOptions.find(std::string(option)) != DValidOptions.end()){
                 DOptions.erase(std::string(option));
                 DOptionTypes.erase(std::string(option));
             }
         }
+
+        // Returns set of all valid options
         std::unordered_set<std::string> ValidOptions() const{
             return DValidOptions;
         }
     };
 
+    // Bus system data
     std::shared_ptr<CBusSystem> DBusSystem;
+
+    // Output Configuration
     std::shared_ptr<SConfig> DConfig;
 
+    // Constructor
     SImplementation(std::shared_ptr<CBusSystem> bussystem){
         DBusSystem = bussystem;
         DConfig = std::make_shared<SConfig>();
@@ -83,10 +109,12 @@ struct CTextTripPlanWriter::SImplementation{
 
     }
 
+    // Returns current config
     std::shared_ptr<SConfig> Config() const{
         return DConfig;
     }
 
+    // Converts TStopTime into 12 hour clock string
     std::string FormatTime(CBusSystem::TStopTime stopTime) {
         auto hours = stopTime.hours().count();
         auto minutes = stopTime.minutes().count();
@@ -105,6 +133,7 @@ struct CTextTripPlanWriter::SImplementation{
         return oss.str();
     }
 
+    // When verbose enabled, writes a "Stay on the bus" line for every stop vetween the start and end steps of a single route 
     void WriteVerboseStops(std::ostringstream &oss, const CTripPlanner::STravelStep &start, const CTripPlanner::STravelStep &end){
         auto route = DBusSystem->RouteByName(start.DRouteName);
         if(!route){
@@ -115,6 +144,7 @@ struct CTextTripPlanWriter::SImplementation{
         size_t startStopIndex =0;
         bool foundTrip = false;
 
+        // Search all trips and find one whoes stopID and scheduled time both match boarding step
         for (size_t i = 0; i < route->TripCount(); i++)
         {
             for (size_t j = 0; j < route->StopCount(); j++)
@@ -133,14 +163,15 @@ struct CTextTripPlanWriter::SImplementation{
             }
         }
         if(!foundTrip){
-            return;
+            return; // Skip verbose output if matching trip not found
         }
         
+        // Output "stay on bus" line
         for (size_t i = startStopIndex + 1; i < route->StopCount(); i++)
         {
             auto currentStopID = route->GetStopID(i);
             if(currentStopID == end.DStopID){
-                break;
+                break; // Reached exit stop
             }
             auto stopNode = DBusSystem->StopByID(currentStopID);
             std::string stopDescription = (stopNode != nullptr) ? stopNode->Description() : "Unknown Stop";
@@ -151,6 +182,7 @@ struct CTextTripPlanWriter::SImplementation{
         
     }
 
+    // Formats full travel plan as plain-text instructions and writes them to sink
     bool WritePlan(std::shared_ptr<CDataSink> sink, const TTravelPlan &plan){
         if(!sink | plan.empty()){
             return false;
@@ -165,26 +197,33 @@ struct CTextTripPlanWriter::SImplementation{
             std::string timeStr = FormatTime(step.DTime);
 
             if(i == 0){
+                // First step: board first bus
                 oss << timeStr << ": Take the " << step.DRouteName << " bus from " 
                 << stopDesc << " (stop " << step.DStopID << ").\n";
+                // List all intermediate stops until next step
                 if(isVerbose && (i + 1 < plan.size())){
                     WriteVerboseStops(oss, plan[i], plan[i+1]);
                 }
             }
             else if(i == plan.size() - 1){
+                // Last step: exit the final bus at the destination
                 std::string arrivalRoute = plan[i-1].DRouteName;
                 oss << timeStr << ": Get off the " << arrivalRoute << " bus at " 
                     << stopDesc << " (stop " << step.DStopID << ").\n";
             }
             else{
+                // Middle step: transfer between routes at this stop
+                // Instruct passenger to exit previous bus and wait
                 std::string prevRoute = plan[i-1].DRouteName;
                 oss << "        : Get off the " << prevRoute << " bus at " << stopDesc 
                 << " (stop " << step.DStopID << ") and wait for the " 
                 << step.DRouteName << " bus.\n";
                 
+                // Instruct them to board next bus at scheduled departure
                 oss << timeStr << ": Take the " << step.DRouteName << " bus from " 
                 << stopDesc << " (stop " << step.DStopID << ").\n";
                 
+                // In verbose mode, list all intermediate stops until next step
                 if(isVerbose && (i + 1 < plan.size())){
                     WriteVerboseStops(oss, plan[i], plan[i+1]);
                 }
@@ -193,6 +232,7 @@ struct CTextTripPlanWriter::SImplementation{
             
 
         }
+        // Convert string into vector and write to sink
         std::string finalOutput = oss.str();
         std::vector<char> outData(finalOutput.begin(), finalOutput.end());
         sink->Write(outData);
