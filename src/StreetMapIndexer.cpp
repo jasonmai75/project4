@@ -165,6 +165,7 @@ CStreetMapIndexer::~CStreetMapIndexer() {
 
 }
 
+// 
 std::size_t CStreetMapIndexer::NodeCount() const noexcept {
     return DImplementation->NodeCount();
 }
