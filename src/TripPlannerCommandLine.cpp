@@ -7,6 +7,7 @@
 #include <iostream>
 
 struct CTripPlannerCommandLine::SImplementation{
+    // Core I/O and system dependencies
     std::shared_ptr<CDataSource> DCommandSource;
     std::shared_ptr<CDataSink> DOutSink;
     std::shared_ptr<CDataSink> DErrorSink;
@@ -15,6 +16,8 @@ struct CTripPlannerCommandLine::SImplementation{
     std::shared_ptr<CStreetMap> DStreetMap;
     std::shared_ptr<CTripPlanWriter> DOutWriter;
     std::shared_ptr<CTripPlanWriter> DStorageWriter;
+
+    // Recognized command line commands
     inline static constexpr std::string_view DExitCommand = "exit";
     inline static constexpr std::string_view DHelpCommand = "help";
     inline static constexpr std::string_view DCountCommand = "count";
@@ -26,6 +29,7 @@ struct CTripPlannerCommandLine::SImplementation{
     inline static constexpr std::string_view DArriveByCommand = "arriveby";
     inline static constexpr std::string_view DSaveCommand = "save";
 
+    // Unpack all dependencies from config bundle
     SImplementation(std::shared_ptr<SConfig> config){
         DCommandSource = config->DCommandSource;
         DOutSink = config->DOutSink;
@@ -41,6 +45,7 @@ struct CTripPlannerCommandLine::SImplementation{
 
     }
 
+    // Wrappers for writing to output and error sinks
     void OutputString(const std::string &str){
         DOutSink->Write(std::vector<char>{str.begin(),str.end()});
     }
@@ -53,6 +58,7 @@ struct CTripPlannerCommandLine::SImplementation{
         OutputString("> ");
     }
 
+    // Reads one line of input char by char until new line or end of src
     std::string InputCommand(){
         std::string Command;
         char TempCh;
@@ -67,6 +73,7 @@ struct CTripPlannerCommandLine::SImplementation{
         return Command;
     }
 
+    // Splits command string into tokens stored in args
     void ParseCommand(const std::string &cmd, std::vector<std::string> &args){
         args.clear();
         size_t Index = 0;
@@ -84,6 +91,8 @@ struct CTripPlannerCommandLine::SImplementation{
             }
         }
     }
+
+    // Converts decimal degree value to DMS string
     std::string FormatLatLong(double val, bool isLat){
         char dir = isLat ? (val >= 0 ? 'N' : 'S') : (val >= 0 ? 'E' : 'W');
         val = std::abs(val);
@@ -96,6 +105,8 @@ struct CTripPlannerCommandLine::SImplementation{
         oss<< d << "d " << m << "' " << std::fixed << std::setprecision(2) << s << "\" " << dir;
         return oss.str();
     }
+
+    // Reads all flags and options from config object into string maps for display
     void ExtractConfig(std::shared_ptr<CTripPlanWriter::SConfig> c, std::map<std::string, std::string>& flagsMap, std::map<std::string, std::string>& optionsMap){
         if(!c){
             return;
@@ -120,6 +131,7 @@ struct CTripPlannerCommandLine::SImplementation{
         }
     }
 
+    // Toggles flag on both writers if it exists
     void ToggleConfigFlag(std::shared_ptr<CTripPlanWriter::SConfig> c, const std::string& flag, bool& found, bool& state){
         if(!c){
             return;
@@ -136,6 +148,7 @@ struct CTripPlannerCommandLine::SImplementation{
         }
     }
 
+    // Sets option on config
     void TrySetOption(std::shared_ptr<CTripPlanWriter::SConfig> c, const std::string& option, const std::string& valueStr, bool& found, std::string& printedVal){
         if(!c || c->ValidOptions().count(option) == 0){
             return;
@@ -159,11 +172,15 @@ struct CTripPlannerCommandLine::SImplementation{
             found = true;
         }
     }
+
+    // State retained between commands to support save command
     CTripPlanner::TTravelPlan DRecentPlan;
     bool DLastWasLeaveAt = false;
     int DLastTimeQuery = 0;
     CBusSystem::TStopID DLastStartStop = 0;
     CBusSystem::TStopID DLastEndStop = 0;
+
+    // Processes commands and sends to appropriate handler and repeats until exit
     bool ProcessCommands(){
         while(!DCommandSource->End()){
             OutputPrompt();
@@ -171,10 +188,13 @@ struct CTripPlannerCommandLine::SImplementation{
             std::vector<std::string> Arguments;
             ParseCommand(Command,Arguments);
             if(!Arguments.empty()){
+                // exit
                 if(Arguments[0] == DExitCommand){
                     return true;
                 }
+                // help
                 else if(Arguments[0] == DHelpCommand){
+                    // Print the full command reference
                     OutputString("--------------------------------------------------------------------------\n"
                                     "help     Display this help menu\n"
                                     "exit     Exit the program\n"
@@ -192,7 +212,10 @@ struct CTripPlannerCommandLine::SImplementation{
                                     "         Calculates the best trip plan from start to end arriving by time.\n"
                                     "save     Saves the last calculated trip to file\n");
                 }
+
+                // count
                 else if(Arguments[0] == DCountCommand){
+                   // Print stop count to output sink abd route count to stdout
                     auto stopCount = DTripPlanner->BusSystemIndexer()->StopCount();
                     auto routeCount = DTripPlanner->BusSystemIndexer()->RouteCount();
                     std::ostringstream oss;
@@ -200,7 +223,9 @@ struct CTripPlannerCommandLine::SImplementation{
                     std::cout <<routeCount<<" routes\n";
                     OutputString(oss.str());
                 }
+                // config
                 else if(Arguments[0] == DConfigCommand){
+                    // Merge flags and options from both writers and print left-align
                     std::map<std::string, std::string> flagsMap;
                     std::map<std::string, std::string> optionsMap;
 
@@ -220,6 +245,7 @@ struct CTripPlannerCommandLine::SImplementation{
                         OutputString(oss.str());
                     }
                 }
+                // toggle
                 else if(Arguments[0] == DToggleCommand){
                     if(Arguments.size() < 2){
                         OutputError("Invalid toggle command, see help.\n");
@@ -227,7 +253,8 @@ struct CTripPlannerCommandLine::SImplementation{
                         std::string flag = Arguments[1];
                         bool found = false;
                         bool state = false;
-
+                        
+                        // Apply toggle to both writers so display and storage stay in sync
                         ToggleConfigFlag(DOutWriter ? DOutWriter->Config() : nullptr, flag, found, state);
                         ToggleConfigFlag(DStorageWriter ? DStorageWriter->Config() : nullptr, flag, found, state);
 
@@ -238,6 +265,7 @@ struct CTripPlannerCommandLine::SImplementation{
                         }
                     }
                 }
+                // set
                 else if(Arguments[0] == DSetCommand){
                     if(Arguments.size() < 3){
                         OutputError("Invalid set command, see help.\n");
@@ -273,6 +301,8 @@ struct CTripPlannerCommandLine::SImplementation{
                         }
                     }
                 }
+
+                // stop
                 else if(Arguments[0] == DStopCommand){
                     if(Arguments.size() < 2){
                         OutputError("Invalid stop command, see help.\n");
@@ -306,6 +336,8 @@ struct CTripPlannerCommandLine::SImplementation{
                         }
                     }
                 }
+
+                // leaveat / arriveby
                 else if(Arguments[0] == DLeaveAtCommand || Arguments[0] == DArriveByCommand){
                     if(Arguments.size() < 4){
                         OutputError("Invalid " + Arguments[0] + " command, see help.\n");
@@ -403,6 +435,8 @@ struct CTripPlannerCommandLine::SImplementation{
                         }
                     }
                 }
+
+                // save
                 else if(Arguments[0] == DSaveCommand){
                     if(DRecentPlan.empty()){
                         OutputError("No valid trip to save, see help.\n");
@@ -424,6 +458,7 @@ struct CTripPlannerCommandLine::SImplementation{
                         OutputString("Trip saved to <results>/" + filename + "\n");
                     }
                 }
+                // unknown commnad
                 else{
                     OutputError("Unknown command \"" + Arguments[0] + "\" type help for help.\n");
                 }
