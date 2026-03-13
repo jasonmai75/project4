@@ -293,18 +293,18 @@ struct CTripPlanner::SImplementation{
                 }
             }
 
-            //Check 1-Transfer Route
+            // Check 1-Transfer Route
             for (size_t r2 = 0; r2 < DBusSystem->RouteCount(); ++r2) {
-                //Skip same route (already handled by direct check)
+                // Skip same route (already handled by direct check)
                 if (r1 == r2) continue; 
                 
                 auto routeB = DBusSystem->RouteByIndex(r2);
                 
-                //Where is dest in Route B
+                // Where is dest in Route B
                 size_t destIdxB = findStopIdx(routeB, dest);
                 if (destIdxB == std::string::npos) continue;
 
-                //Look for an intersection point (Transfer Stop) AFTER src in Route A
+                // Look for an intersection point (Transfer Stop) AFTER src in Route A
                 for (size_t iA = srcIdxA + 1; iA < routeA->StopCount(); ++iA) {
                     TStopID transferStop = routeA->GetStopID(iA);
                     
