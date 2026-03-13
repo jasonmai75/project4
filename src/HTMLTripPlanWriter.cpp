@@ -101,35 +101,6 @@ struct CHTMLTripPlanWriter::SImplementation{
         if(!sink || plan.empty()) {
             return false;
         }
-        //Syncing configs bewteen the three writers
-        auto htmlConfig = Config();
-        auto textConfig = DTextTripPlanWriter->Config();
-        auto svgConfig  = DSVGTripPlanWriter->Config();
-        if(htmlConfig) {
-            for(const auto& flag : htmlConfig->ValidFlags()){
-                if(htmlConfig->FlagEnabled(flag)) {
-                    if(textConfig->ValidFlags().count(flag)) textConfig->EnableFlag(flag);
-                    if(svgConfig->ValidFlags().count(flag))  svgConfig->EnableFlag(flag);
-                } else {
-                    if(textConfig->ValidFlags().count(flag)) textConfig->DisableFlag(flag);
-                    if(svgConfig->ValidFlags().count(flag))  svgConfig->DisableFlag(flag);
-                }
-            }
-
-            for(const auto& opt : htmlConfig->ValidOptions()){
-                auto val = htmlConfig->GetOption(opt);
-                if (val.type() == typeid(int)) {
-                    textConfig->SetOption(opt, std::any_cast<int>(val));
-                } else if (val.type() == typeid(std::string)) {
-                    textConfig->SetOption(opt, std::any_cast<std::string>(val));
-                }
-                if (val.type() == typeid(int)) {
-                    svgConfig->SetOption(opt, std::any_cast<int>(val));
-                } else if (val.type() == typeid(std::string)) {
-                    svgConfig->SetOption(opt, std::any_cast<std::string>(val));
-                }
-            }
-        }
 
         auto svgSink = std::make_shared<CStringDataSink>();
         if(!DSVGTripPlanWriter->WritePlan(svgSink, plan)){
