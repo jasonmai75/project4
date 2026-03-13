@@ -36,10 +36,13 @@ TEST_OBJ_FILES		= $(TEST_SVG_OBJ) $(TEST_SVG_TEST_OBJ)
 TEST_STRSINK_OBJ		= $(TESTOBJ_DIR)/StringDataSink.o
 TEST_STRSINK_TEST_OBJ	= $(TESTOBJ_DIR)/StringDataSinkTest.o
 TEST_STRSINK_OBJ_FILES	= $(TEST_STRSINK_OBJ) $(TEST_STRSINK_TEST_OBJ)
+TEST_STDSINK_OBJ        = $(TESTOBJ_DIR)/StandardDataSink.o
 
 TEST_STRSRC_OBJ			= $(TESTOBJ_DIR)/StringDataSource.o
 TEST_STRSRC_TEST_OBJ	= $(TESTOBJ_DIR)/StringDataSourceTest.o
 TEST_STRSRC_OBJ_FILES	= $(TEST_STRSRC_OBJ) $(TEST_STRSRC_TEST_OBJ)
+TEST_STDSRC_OBJ         = $(TESTOBJ_DIR)/StandardDataSource.o
+TEST_STDERR_OBJ         = $(TESTOBJ_DIR)/StandardErrorDataSink.o
 
 TEST_SVGWRITER_OBJ		= $(TESTOBJ_DIR)/SVGWriter.o
 TEST_SVGWRITER_TEST_OBJ	= $(TESTOBJ_DIR)/SVGWriterTest.o
@@ -126,12 +129,17 @@ TEST_TPCL_OBJ_FILES		= $(TEST_STRSRC_OBJ) \
 						$(TEST_MOCK_BS_OBJ) \
 						$(TEST_MOCK_SM_OBJ) \
 						$(TEST_BSIDX_OBJ) \
+						$(TEST_SMIDX_OBJ) \
+                        $(TEST_SVGWRITER_OBJ) \
+                        $(TEST_GEOUTILS_OBJ) \
+                        $(TEST_XMLREADER_OBJ) \
 						$(TEST_HTMLTPW_OBJ) \
 						$(TEST_SVGTPW_OBJ) \
 						$(TEST_TEXTTPW_OBJ) \
 						$(TEST_TP_OBJ) \
 						$(TEST_TPCL_OBJ) \
-						$(TEST_TPCL_TEST_OBJ)
+						$(TEST_TPCL_TEST_OBJ) \
+						$(STATIC_LIB)
 
 TEST_FILEDATASS_OBJ		= $(TESTOBJ_DIR)/FileDataFactory.o \
 						$(TESTOBJ_DIR)/FileDataSource.o \
@@ -186,6 +194,7 @@ all: directories \
 	run_svgtpwtest \
 	run_htmltpwtest \
 	run_tpcltest \
+	run_tripmain \
 	gen_html
 
 run_svgtest: $(TEST_SVG_TARGET)
@@ -271,6 +280,9 @@ $(MAIN_TARGET): $(SRC_DIR)/main.c $(STATIC_LIB)
 runmain: $(MAIN_TARGET)
 	$(MAIN_TARGET)
 
+run_tripmain: $(TRIPPLANNER_TARGET)
+	$(TRIPPLANNER_TARGET)
+
 xmldiff: runmain
 	xmldiff expected_checkmark.svg checkmark.svg && echo "SVG files are identical" || echo "SVG files are NOT identical"
 
@@ -327,18 +339,24 @@ $(TEST_TPCL_TARGET): $(TEST_TPCL_OBJ_FILES)
 
 $(TRIPPLANNER_TARGET): $(TESTOBJ_DIR)/tripplannermain.o \
 					$(TEST_BSIDX_OBJ) \
-					$(TEST_SMIDX_OBJ) \
-					$(TEST_TP_OBJ) \
-					$(TEST_TEXTTPW_OBJ) \
-					$(TEST_SVGTPW_OBJ) \
-					$(TEST_HTMLTPW_OBJ) \
-					$(TEST_TPCL_OBJ) \
-					$(TEST_XMLREADER_OBJ) \
-					$(TEST_XMLBS_OBJ) \
-					$(TEST_OSM_OBJ) \
-					$(TEST_STRSRC_OBJ) \
-					$(TEST_STRSINK_OBJ) \
-					$(STATIC_LIB)
+                    $(TEST_SMIDX_OBJ) \
+                    $(TEST_TP_OBJ) \
+                    $(TEST_TEXTTPW_OBJ) \
+                    $(TEST_SVGTPW_OBJ) \
+                    $(TEST_HTMLTPW_OBJ) \
+                    $(TEST_TPCL_OBJ) \
+                    $(TEST_XMLREADER_OBJ) \
+                    $(TEST_XMLBS_OBJ) \
+                    $(TEST_OSM_OBJ) \
+                    $(TEST_STRSRC_OBJ) \
+                    $(TEST_STRSINK_OBJ) \
+                    $(TEST_GEOUTILS_OBJ) \
+                    $(TEST_SVGWRITER_OBJ) \
+                    $(TEST_FILEDATASS_OBJ) \
+                    $(TEST_STDSRC_OBJ) \
+                    $(TEST_STDSINK_OBJ) \
+                    $(TEST_STDERR_OBJ) \
+                    $(STATIC_LIB)
 	$(CXX) $(TEST_CFLAGS) $(TEST_CPPFLAGS) $^ $(TEST_LDFLAGS) -o $(TRIPPLANNER_TARGET)
 
 $(TEST_SVG_TEST_OBJ): $(TESTSRC_DIR)/SVGTest.cpp
