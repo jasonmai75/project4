@@ -7,67 +7,86 @@
 #include "StringDataSink.h"
 
 struct CHTMLTripPlanWriter::SImplementation{
-    std::shared_ptr<CStreetMap> DStreetMap;
-    std::shared_ptr<CBusSystem> DBusSystem;
-    std::shared_ptr<CSVGTripPlanWriter> DSVGTripPlanWriter;
-    std::shared_ptr<CTextTripPlanWriter> DTextTripPlanWriter;
+    std::shared_ptr<CStreetMap> DStreetMap; // OSM street Map
+    std::shared_ptr<CBusSystem> DBusSystem; // Bus routes and stop data
+    std::shared_ptr<CSVGTripPlanWriter> DSVGTripPlanWriter; // Generates and inline SVG map
+    std::shared_ptr<CTextTripPlanWriter> DTextTripPlanWriter; // Generates plain text schedule
+
+    // Constructor
     SImplementation(std::shared_ptr<CStreetMap> streetmap, std::shared_ptr<CBusSystem> bussystem){
-        DStreetMap = streetmap;
-        DBusSystem = bussystem;
-        DSVGTripPlanWriter = std::make_shared<CSVGTripPlanWriter>(streetmap, bussystem);
-        DTextTripPlanWriter = std::make_shared<CTextTripPlanWriter>(bussystem);
+        DStreetMap = streetmap;                                                          
+        DBusSystem = bussystem;                                                              
+        DSVGTripPlanWriter = std::make_shared<CSVGTripPlanWriter>(streetmap, bussystem);    
+        DTextTripPlanWriter = std::make_shared<CTextTripPlanWriter>(bussystem);            
     }
     
     ~SImplementation(){
 
     }
 
+    // Gives config access to SVG writer
     std::shared_ptr<SConfig> Config() const{
         return DSVGTripPlanWriter->Config();
     }
 
+    // Produces HTML document combining inline SVG map and CSS grid schedule table
     bool WritePlan(std::shared_ptr<CDataSink> sink, const TTravelPlan &plan){
         if(!sink || plan.empty()) {
             return false;
         }
+
+        // Step 1: generate SVG map into string
         auto svgSink = std::make_shared<CStringDataSink>();
         if(!DSVGTripPlanWriter->WritePlan(svgSink, plan)){
             return false;
         }
         std::string svgPlan = svgSink->String();
 
+        // Step 2: generate plain text schedule into string
         auto textSink = std::make_shared<CStringDataSink>();
         if(!DTextTripPlanWriter->WritePlan(textSink, plan)){
             return false;
         }
         std::string textPlan = textSink->String();
 
+        // Step 3: Build HTML document
         std::stringstream htmlOut;
+        // Docuemnt head
         htmlOut<<"<!DOCTYPE html>\n";
         htmlOut<<"<html>\n";
         htmlOut<<"    <head>\n";
         htmlOut<<"        <meta charset=\"UTF-8\">\n";
         htmlOut<<"        <title>Trip Plan</title>\n";
         htmlOut<<"        <style>\n";
+
+        // Outer container
         htmlOut<<"            .container {\n";
         htmlOut<<"                display: flex;\n";
         htmlOut<<"                flex-direction: column;\n";
         htmlOut<<"                align-items: center;\n";
         htmlOut<<"                gap: 2rem;\n";
         htmlOut<<"            }\n\n";
+
+        // Text and graphics section
         htmlOut<<"            .text {\n";
         htmlOut<<"                width: 100%;\n";
         htmlOut<<"            }\n\n";
         htmlOut<<"            .graphic {\n";
         htmlOut<<"                width: 100%;\n";
         htmlOut<<"            }\n\n";
+
+        // SVG scale
         htmlOut<<"            svg {\n";
         htmlOut<<"                max-width: 100%;\n";
         htmlOut<<"                height: auto;\n";
         htmlOut<<"            }\n";
+
+        // Stop circles and pointer events so hover works on SVG elements
         htmlOut<<"            .stop circle {\n";
         htmlOut<<"              pointer-events: all;\n";
         htmlOut<<"            }\n";
+
+        // Stop labels hidden by default and fade in on hover
         htmlOut<<"            \n";
         htmlOut<<"            .stop text {\n";
         htmlOut<<"              opacity: 0;\n";
@@ -77,18 +96,22 @@ struct CHTMLTripPlanWriter::SImplementation{
         htmlOut<<"            .stop:hover text {\n";
         htmlOut<<"              opacity: 1;\n";
         htmlOut<<"            }\n";
+
+        // Schedule grid
         htmlOut<<"            .schedule {\n";
         htmlOut<<"                display: grid;\n";
         htmlOut<<"                grid-template-columns: 80px 10px auto;\n";
         htmlOut<<"                row-gap: 0.4rem;\n";
         htmlOut<<"                font-family: monospace;\n";
         htmlOut<<"            }\n\n";
+        // Time column
         htmlOut<<"            .time {\n";
         htmlOut<<"                text-align: right;\n";
         htmlOut<<"                padding-right: 5px;\n";
         htmlOut<<"            }\n";
         htmlOut<<"        </style>\n";
         htmlOut<<"    </head>\n";
+        // Document body
         htmlOut<<"    <body>\n";
         htmlOut<<"        <div class=\"container\">\n";
         htmlOut<<"            <div class=\"graphic\">\n";
@@ -98,18 +121,22 @@ struct CHTMLTripPlanWriter::SImplementation{
         htmlOut<<"                <h2>Trip Steps</h2>\n";
         htmlOut<<"                <div class=\"schedule\">\n";
 
+        // Step 4: Parse each line of the text and output three grid cells
         std::stringstream textSS(textPlan);
         std::string line;
         while (std::getline(textSS, line))
         {
             if(line.empty()){
-                continue;
+                continue; // skip blank lines
             }
+
+            // Split on first ": " to seperate timestamp from instruction
             size_t delimiterPos = line.find(": ");
             if(delimiterPos != std::string::npos){
                 std::string timeStr = line.substr(0, delimiterPos);
                 std::string instructionStr = line.substr(delimiterPos + 2);
                 
+                // Trim time string
                 size_t firstNonSpace = timeStr.find_first_not_of(" ");
                 if(firstNonSpace == std::string::npos){
                     timeStr = ""; 
@@ -118,11 +145,13 @@ struct CHTMLTripPlanWriter::SImplementation{
                     timeStr = timeStr.substr(firstNonSpace, lastNonSpace - firstNonSpace + 1);
                 }
 
+                // Trim leading spaces from instruction text
                 firstNonSpace = instructionStr.find_first_not_of(" ");
                 if(firstNonSpace != std::string::npos){
                     instructionStr = instructionStr.substr(firstNonSpace);
                 }
 
+                // Escape all '&' chars in instruction to valid HTML entities
                 size_t ampersandPos = 0;
                 std::string ampersandHTMLCode = "&amp;";
                 while ((ampersandPos = instructionStr.find("&",ampersandPos)) != std::string::npos)
@@ -130,14 +159,18 @@ struct CHTMLTripPlanWriter::SImplementation{
                     instructionStr.replace(ampersandPos, 1, ampersandHTMLCode);
                     ampersandPos += ampersandHTMLCode.size();
                 }
+                // Output one grid row
                 htmlOut<<"                    <div class=\"time\">"<<timeStr<<"</div><div>:</div><div>"<<instructionStr<<"</div>\n";
             }
         }
+        // Close all open HTML tags
         htmlOut<<"                </div>\n";
         htmlOut<<"            </div>\n";
         htmlOut<<"        </div>\n";
         htmlOut<<"    </body>\n";
         htmlOut<<"</html>\n";
+
+        // Convert completed HTML string to vector and write to sink
         std::string htmlStr = htmlOut.str();
         std::vector<char> outData(htmlStr.begin(),htmlStr.end());
         return sink->Write(outData);
