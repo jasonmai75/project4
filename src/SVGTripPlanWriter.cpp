@@ -178,6 +178,10 @@ struct CSVGTripPlanWriter::SImplementation{
     const std::string DTypeSecondary = "secondary";
     const std::string DTypeTertiary = "tertiary";
     const std::string DTypeResidential = "residential";
+    const std::string DTypeTrunk = "trunk";
+    const std::string DTypeTrunkLink = "trunk_link";
+    const std::string DTypeMotorWayLink = "motorway_link";
+    const std::string DTypePrimaryLink = "primary_link";
     const std::string DAttributeName = "name";
 
     // SVG values for label alignment
@@ -255,9 +259,15 @@ struct CSVGTripPlanWriter::SImplementation{
             } 
             bool isEnabled = false;
             int strokeWidth = 2;
-
-            // Determine if this highway type of enabled and get its stroke width
-            if(highwayType == DTypeMotorWay && DConfig->FlagEnabled(CSVGTripPlanWriter::MotorwayEnabled)){
+            if((highwayType == DTypeMotorWay || highwayType == DTypeMotorWayLink || 
+                highwayType == DTypeTrunk || highwayType == DTypeTrunkLink) && 
+                DConfig->FlagEnabled(CSVGTripPlanWriter::MotorwayEnabled)){
+                isEnabled = true; 
+                strokeWidth = std::any_cast<int>(DConfig->GetOption(CSVGTripPlanWriter::MotorwayStroke));
+            }else if((highwayType == DTypePrimary || highwayType == DTypePrimaryLink) && DConfig->FlagEnabled(CSVGTripPlanWriter::PrimaryEnabled)){
+                isEnabled = true; 
+                strokeWidth = std::any_cast<int>(DConfig->GetOption(CSVGTripPlanWriter::PrimaryStroke));
+            }else if(highwayType == DTypeMotorWay && DConfig->FlagEnabled(CSVGTripPlanWriter::MotorwayEnabled)){
                 isEnabled = true; strokeWidth = std::any_cast<int>(DConfig->GetOption(CSVGTripPlanWriter::MotorwayStroke));
             }
             else if(highwayType == DTypePrimary && DConfig->FlagEnabled(CSVGTripPlanWriter::PrimaryEnabled)){
