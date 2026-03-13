@@ -234,7 +234,7 @@ struct CSVGTripPlanWriter::SImplementation{
                     MapLatToSVGY(node->Location().DLatitude, centerLat, scale, h)
                 });
             }
-            writer.SimplePath(points, {{"stroke", streetColor}, {"stroke-width", std::to_string(strokeWidth)}, {"fill", "none"}});
+            writer.SimplePath(points, {{"stroke", streetColor}, {"stroke-width", std::to_string(strokeWidth)}, {"fill", "none"}, {"stroke-linecap", "round"}});
         }
     }
 
@@ -393,7 +393,9 @@ struct CSVGTripPlanWriter::SImplementation{
             }
             writer.SimplePath(allPathPoints, {{"stroke", routeColors[plan[stepID].DRouteName]}, 
                                               {"stroke-width", std::to_string(busStroke)}, 
-                                              {"fill", "none"}}); 
+                                              {"fill", "none"},
+                                              {"stroke-linecap", "round"}
+                                            }); 
         }
     }
 
