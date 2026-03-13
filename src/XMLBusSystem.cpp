@@ -1,6 +1,7 @@
 #include "XMLBusSystem.h"
 #include <vector>
 #include <unordered_map>
+#include <sstream>
 #include <iostream>
 using std::cout;
 using std::endl;
@@ -66,44 +67,45 @@ struct CXMLBusSystem::SImplementation{
     };
 
     // Represents bus route with name and list of stops
-    struct SRoute : public CBusSystem::SRoute {
-        std::string DName;                  // Route Name
-        std::vector<TStopID> DStopIDs;      // Ordered list of stop IDs on this route
-
-
-        // Constructor
+  struct SRoute : public CBusSystem::SRoute {
+        std::string DName;                      // Route name
+        std::vector<TStopID> DStopIDs;          // Ordered list of stop IDs on this route
+        std::vector<long long> DDeltas;         // Per-stop delta offsets in seconds from trip start
+        std::vector<long long> DTripStartTimes; // Start time of each trip in seconds since midnight
+ 
         SRoute(const std::string &name) : DName(name) {}
-
-        // Destructor
         ~SRoute() {}
-
-        // Returns route name
+ 
         std::string Name() const noexcept override{
             return DName;
         }
-
-        // Returns how many stops are on this route
-        std::size_t StopCount() const noexcept override {
+ 
+        std::size_t StopCount() const noexcept override{
             return DStopIDs.size();
         }
-
-        // Returns stop ID at given index or InvalidNodeID if out of range
-        TStopID GetStopID(std::size_t index) const noexcept override {
-            if(index >= DStopIDs.size()) {
+ 
+        // Returns stop ID at given index or InvalidStopID if out of range
+        TStopID GetStopID(std::size_t index) const noexcept override{
+            if(index >= DStopIDs.size()){
                 return InvalidStopID;
             }
             return DStopIDs[index];
         }
-
-        // Added to remove Makefile Error (figure out later)
-        std::size_t TripCount() const noexcept override {
-             return 0; // stub if not used
-         }
-
-         TStopTime GetStopTime(std::size_t stopindex, std::size_t tripindex) const noexcept override {
-             return {}; // stub if not used
-        }   
-
+ 
+        // Returns the number of scheduled trips for this route
+        std::size_t TripCount() const noexcept override{
+            return DTripStartTimes.size();
+        }
+ 
+        // Returns the stop time for the given stop and trip indices
+        // Stop time = trip start time + stop's delta offset
+        TStopTime GetStopTime(std::size_t stopindex, std::size_t tripindex) const noexcept override{
+            if(stopindex >= DDeltas.size() || tripindex >= DTripStartTimes.size()){
+                return TStopTime(std::chrono::seconds(0));
+            }
+            long long totalSec = DTripStartTimes[tripindex] + DDeltas[stopindex];
+            return TStopTime(std::chrono::seconds(totalSec));
+        }
     };
     
     struct SPath : public CBusSystem::SPath {
@@ -165,6 +167,27 @@ struct CXMLBusSystem::SImplementation{
         return false;
     }
 
+    // Parses a schedule string "07:00 AM,07:30 AM,..." into a vector of seconds since midnight
+    std::vector<long long> ParseSchedule(const std::string &scheduleStr){
+        std::vector<long long> times;
+        if(scheduleStr.empty()){
+            return times;
+        }
+        std::stringstream ss(scheduleStr);
+        std::string token;
+        while(std::getline(ss, token, ',')){
+            int hour, minute;
+            char colon;
+            std::string ampm;
+            std::istringstream ts(token);
+            ts >> hour >> colon >> minute >> ampm;
+            if(ampm == "PM" && hour != 12) hour += 12;
+            if(ampm == "AM" && hour == 12) hour = 0;
+            times.push_back(hour * 3600LL + minute * 60LL);
+        }
+        return times;
+    }
+
     // Data Storage
 
     // Stop storage: by index (is fastest lookup) and by ID (for fast lookup)
@@ -191,7 +214,7 @@ struct CXMLBusSystem::SImplementation{
 
         // Store in both containers 
         DStopsByIndex.push_back(NewStop);
-        cout<<"DStopsByIndex "<<DStopsByIndex.size()<<endl;
+        
         DStopsByID[StopID] = NewStop;
 
         // Move to closing </stop> tag
@@ -207,7 +230,7 @@ struct CXMLBusSystem::SImplementation{
 
                 return;
             }
-            cout<<int(TempEntity.DType)<<" '"<<TempEntity.DNameData<<"'"<<endl;
+            
             if((TempEntity.DType == SXMLEntity::EType::StartElement) &&(TempEntity.DNameData == DStopTag)){
                 ParseStop(systemsource,TempEntity);
             }
@@ -215,32 +238,37 @@ struct CXMLBusSystem::SImplementation{
         }while((TempEntity.DType != SXMLEntity::EType::EndElement)||(TempEntity.DNameData != DStopsTag));
     }
 
-    // Parses single <route> element with its list of stops
-    void ParseRoute(std::shared_ptr< CXMLReader > systemsource, const SXMLEntity &route){
-        // Get route name from attributes
+    // Parses a single <route> element with its schedule and list of stops
+    void ParseRoute(std::shared_ptr<CXMLReader> systemsource, const SXMLEntity &route){
         std::string RouteName = route.AttributeValue(DRouteNameAttr);
         auto NewRoute = std::make_shared<SRoute>(RouteName);
-
-        SXMLEntity TempEntity; 
-
-        // Read all <routestop> tags within the <route>
-        while(systemsource->ReadEntity(TempEntity, true)) {
-            // Stop when hitting </route> closing tag
-            if(TempEntity.DType == SXMLEntity::EType::EndElement && TempEntity.DNameData == DRouteTag) {
+ 
+        // Parse the schedule attribute into trip start times
+        std::string scheduleStr = route.AttributeValue("schedule");
+        NewRoute->DTripStartTimes = ParseSchedule(scheduleStr);
+ 
+        SXMLEntity TempEntity;
+        while(systemsource->ReadEntity(TempEntity, true)){
+            if(TempEntity.DType == SXMLEntity::EType::EndElement && TempEntity.DNameData == DRouteTag){
                 break;
             }
-
-            // Each <routestop stop="X"/> adds a stop to the route
-            if(TempEntity.DType == SXMLEntity::EType::StartElement && TempEntity.DNameData == DRouteStopTag) {
+            if(TempEntity.DType == SXMLEntity::EType::StartElement && TempEntity.DNameData == DRouteStopTag){
                 TStopID StopID = std::stoull(TempEntity.AttributeValue(DRouteAttrStopRef));
                 NewRoute->DStopIDs.push_back(StopID);
+ 
+                // Parse delta="+X.0" — value is in minutes, convert to seconds
+                std::string deltaStr = TempEntity.AttributeValue("delta");
+                long long deltaSec = 0;
+                if(!deltaStr.empty()){
+                    if(deltaStr[0] == '+') deltaStr = deltaStr.substr(1);
+                    deltaSec = static_cast<long long>(std::stod(deltaStr) * 60.0);
+                }
+                NewRoute->DDeltas.push_back(deltaSec);
             }
         }
-
-        // Store route in both containers
+ 
         DRoutesByIndex.push_back(NewRoute);
         DRoutesByName[RouteName] = NewRoute;
-
     }
 
     // Parses all routes within section

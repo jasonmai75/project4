@@ -3,6 +3,8 @@
 
 #include "StreetMap.h"
 #include <chrono>
+#include <sstream>
+#include <iostream>
 
 class CBusSystem{
     public:

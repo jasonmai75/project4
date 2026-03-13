@@ -44,7 +44,7 @@ struct SRouteIndexer : public CBusSystemIndexer::SRouteIndexer{
                 return i;
             }
         }
-        return StopCount(); // return StopCount() when not found
+        return std::numeric_limits<size_t>::max(); // return max when not found
     }
 
         // Returns all stop IDs between src and dest on this route
@@ -84,7 +84,7 @@ struct SRouteIndexer : public CBusSystemIndexer::SRouteIndexer{
         DBusSystem = bussystem;
         for(size_t Index = 0; Index < bussystem->StopCount(); Index++){
             auto stop = bussystem->StopByIndex(Index);
-            std::cout << "Indexing Stop ID: " << stop->ID() << " Desc: " << stop->Description() << std::endl;
+          
             DSortedStopsByIndex.push_back(stop);
         }
         std::sort(DSortedStopsByIndex.begin(), DSortedStopsByIndex.end(),[](std::shared_ptr<SStop> &l, std::shared_ptr<SStop> &r) -> bool{

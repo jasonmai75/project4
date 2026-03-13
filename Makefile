@@ -126,12 +126,17 @@ TEST_TPCL_OBJ_FILES		= $(TEST_STRSRC_OBJ) \
 						$(TEST_MOCK_BS_OBJ) \
 						$(TEST_MOCK_SM_OBJ) \
 						$(TEST_BSIDX_OBJ) \
+						$(TEST_SMIDX_OBJ) \
+						$(TEST_SVGWRITER_OBJ) \
+						$(TEST_GEOUTILS_OBJ) \
+						$(TEST_XMLREADER_OBJ) \
 						$(TEST_HTMLTPW_OBJ) \
 						$(TEST_SVGTPW_OBJ) \
 						$(TEST_TEXTTPW_OBJ) \
 						$(TEST_TP_OBJ) \
 						$(TEST_TPCL_OBJ) \
-						$(TEST_TPCL_TEST_OBJ)
+						$(TEST_TPCL_TEST_OBJ) \
+						$(STATIC_LIB)
 
 TEST_FILEDATASS_OBJ		= $(TESTOBJ_DIR)/FileDataFactory.o \
 						$(TESTOBJ_DIR)/FileDataSource.o \
