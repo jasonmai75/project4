@@ -58,7 +58,7 @@ Search every route and every trip that connects your two stops, skip ones that v
 5. CommandLine (ties it all together for the user)
 
 # Generative AI 
-## Prompts 1-8 are all by Claude AI
+## Prompts 1-11 are all by Claude AI
 ### All those prompts have been fed the context of:
 - "I am a second year CS student working on a C++  project that involves building a bus trip planner.The system has a CBusSystem that stores routes and stops, where each route has an ordered list of stops and a schedule of trips. Each trip represents one run of the route per day. I need to implement a search function that finds the best trip between two stops given either a departure constraint or an arrival constraint. I already understand C++ fundamentals, OOP, shared_ptr, pimpl, and the structure of the bus data from building it earlier. I don't need syntax help, only help understanding the logic and algorithm design decisions. Keep responses concise and use simple diagrams where helpful."
 
